@@ -4,6 +4,7 @@ firmware/include/secrets.h
 
 # Python
 .venv/
+.venv_pio/
 __pycache__/
 *.pyc
 *.egg-info/

@@ -1,0 +1,129 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>Courtside</title>
+  <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+<div class="app">
+
+  <div class="hdr">
+    <div class="brand">
+      <div class="logo"></div>
+      <h1>Courtside</h1>
+    </div>
+    <div id="status" class="status offline">
+      <span class="dot"></span><span id="statusText">connecting…</span>
+    </div>
+  </div>
+
+  <div class="tabs">
+    <button class="tab active" data-tab="live">Live</button>
+    <button class="tab" data-tab="log">Log session</button>
+  </div>
+
+  <!-- ---------------------------------------------------------------- LIVE -->
+  <section id="live" class="panel active">
+
+    <div class="hero">
+      <svg class="ring" viewBox="0 0 36 36">
+        <defs>
+          <linearGradient id="grad" x1="0%" y1="0%" x2="100%" y2="100%">
+            <stop offset="0%" stop-color="#ffd29a"/>
+            <stop offset="100%" stop-color="#f2935a"/>
+          </linearGradient>
+        </defs>
+        <circle class="ring-track" cx="18" cy="18" r="15.915"/>
+        <circle class="ring-fill" id="ringFill" cx="18" cy="18" r="15.915"/>
+      </svg>
+      <div class="hero-center">
+        <div class="hero-val"><span id="heroVal">–</span><span class="deg">°C</span></div>
+        <div class="hero-label">Sand surface</div>
+      </div>
+    </div>
+
+    <div class="card wind">
+      <div class="row-between">
+        <span class="card-label">Wind / sound</span>
+        <span class="wind-val"><span id="sound">–</span> <span class="unit">pp</span></span>
+      </div>
+      <canvas id="sparkline" width="640" height="90"></canvas>
+    </div>
+
+    <div class="tiles">
+      <div class="tile">
+        <div class="card-label">Air</div>
+        <div class="tile-val"><span id="temp">–</span><span class="unit">°C</span></div>
+      </div>
+      <div class="tile">
+        <div class="card-label">Humidity</div>
+        <div class="tile-val"><span id="humidity">–</span><span class="unit">%</span></div>
+      </div>
+      <div class="tile">
+        <div class="card-label">IR ambient</div>
+        <div class="tile-val"><span id="ir_ambient">–</span><span class="unit">°C</span></div>
+      </div>
+    </div>
+
+    <p class="hint">Watch the sand ring &amp; wind trace to pick the tripod spot, then
+       keep this open courtside while you play. (Sand stays blank until the MLX90614
+       is soldered &amp; shows <code>0x5A</code>.)</p>
+  </section>
+
+  <!-- ----------------------------------------------------------------- LOG -->
+  <section id="log" class="panel">
+    <form id="sessionForm" class="card">
+      <label class="fld">Date
+        <input type="date" name="day" required>
+      </label>
+
+      <label class="fld">How did you play? <b class="big-num" id="ratingVal">5</b>/10
+        <input type="range" name="subjective_rating_1_10" min="1" max="10" value="5" step="1">
+      </label>
+
+      <div class="fld">Wind (how it felt)
+        <div class="seg" id="windSeg">
+          <button type="button" data-v="0">calm</button>
+          <button type="button" data-v="1">light</button>
+          <button type="button" data-v="2">gentle</button>
+          <button type="button" data-v="3">mod</button>
+          <button type="button" data-v="4">fresh</button>
+          <button type="button" data-v="5">strong</button>
+        </div>
+        <input type="hidden" name="wind_self_report">
+      </div>
+
+      <div class="grid2">
+        <label class="fld">Kills <input type="number" name="kills" inputmode="numeric"></label>
+        <label class="fld">Errors <input type="number" name="errors" inputmode="numeric"></label>
+      </div>
+      <div class="grid2">
+        <label class="fld">Sets won <input type="number" name="sets_won" inputmode="numeric"></label>
+        <label class="fld">Sets lost <input type="number" name="sets_lost" inputmode="numeric"></label>
+      </div>
+
+      <label class="fld">Partner <input type="text" name="partner"></label>
+      <label class="fld">Opponent level <input type="text" name="opponent_level"></label>
+      <label class="fld">Court / location <input type="text" name="location" placeholder="e.g. La Jolla Shores"></label>
+
+      <button type="button" id="geoBtn" class="ghost">📍 Use my location</button>
+      <div id="geoStatus" class="geomsg"></div>
+      <input type="hidden" name="lat"><input type="hidden" name="lon">
+
+      <label class="fld">Felt state <input type="text" name="felt_state" placeholder="loose, tired, dialed-in…"></label>
+      <label class="fld">Notes <textarea name="notes" rows="2"></textarea></label>
+
+      <button type="submit" class="primary">Save session</button>
+      <div id="formMsg" class="formmsg"></div>
+    </form>
+
+    <h2>Recent sessions</h2>
+    <ul id="sessionList" class="sessions"></ul>
+  </section>
+
+</div>
+<script src="/static/app.js"></script>
+</body>
+</html>

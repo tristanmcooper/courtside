@@ -1,0 +1,14 @@
+# Fdb version 4
+["pdflatex"] 1780350566.74248 "/Users/tristancooper/Desktop/ECE 284 Hardware Sensing/ECE_284_Project_Report/main.tex" "main.pdf" "main" 1780350566.78971 2
+  "/Users/tristancooper/Desktop/ECE 284 Hardware Sensing/ECE_284_Project_Report/main.tex" 1780303412 16867 787cc9da5679699f1101eed830affb1d ""
+  "/usr/local/texlive/2026basic/texmf-dist/web2c/texmf.cnf" 1770478701 43630 e9fa012910491fe5ae08a72c3c2997a7 ""
+  "/usr/local/texlive/2026basic/texmf-var/web2c/pdftex/pdflatex.fmt" 1772405612 2966183 588a2f29d0aaf280e3a142a37c2dd621 ""
+  "/usr/local/texlive/2026basic/texmf.cnf" 1772405582 628 bbc09d6d38872d53c11bb48dc9b14e88 ""
+  "acmart.cls" 0 -1 0 ""
+  "main.aux" 1780350558.74193 32 3985256e7290058c681f74d7a3565a19 "pdflatex"
+  "main.tex" 1780303412 16867 787cc9da5679699f1101eed830affb1d ""
+  (generated)
+  "main.aux"
+  "main.log"
+  "main.pdf"
+  (rewritten before read)
