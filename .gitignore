@@ -1,0 +1,24 @@
+# Secrets — never commit
+.env
+firmware/include/secrets.h
+
+# Python
+.venv/
+__pycache__/
+*.pyc
+*.egg-info/
+
+# Local data / large or sensitive exports
+data/
+*.zip
+apple_health_export/
+backend/*.db
+backend/*.sqlite3
+
+# PlatformIO
+.pio/
+firmware/.pio/
+
+# Editor / OS
+.vscode/
+.DS_Store

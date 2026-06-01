@@ -1,0 +1,9 @@
+# Data pipeline + analysis (scripts/). Backend deps live in backend/requirements.txt.
+pandas
+numpy
+matplotlib
+scikit-learn
+shap
+requests
+python-dotenv
+pyserial
