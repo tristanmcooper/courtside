@@ -23,3 +23,8 @@ firmware/.pio/
 # Editor / OS
 .vscode/
 .DS_Store
+
+# local agent config + any sqlite db (added)
+.claude/
+*.db
+*.sqlite3

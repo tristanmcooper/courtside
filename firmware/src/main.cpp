@@ -5,12 +5,12 @@
 //   - MLX90614: IR sand-surface temp  (I2C, SDA=21 SCL=20, addr 0x5A)
 //   - Mic     : sound/wind proxy       (analog, GPIO4 = ADC1)
 //
-// Prints one CSV row per second over Serial @115200. Phase 2 adds WiFi + HTTP
-// POST to the backend; this Serial CSV stays as a bench/offline fallback.
+// Always prints one CSV row/sec over Serial @115200 (bench/offline fallback).
+// If USE_WIFI (in secrets.h) is 1, it ALSO POSTs each reading as JSON to the
+// backend's /ingest/court, which feeds the live web dashboard.
 //
-// NOTE: DHT11 has no barometric pressure, so the pressure column is gone vs the
-// old BME280 schema. CSV columns are now:
-//   millis,temp_C,humidity_pct,ir_object_C,ir_ambient_C,sound_pp
+// CSV columns: millis,temp_C,humidity_pct,ir_object_C,ir_ambient_C,sound_pp
+// (DHT11 has no pressure, so no pressure column.)
 
 #include <Arduino.h>
 #include <Wire.h>
@@ -18,11 +18,21 @@
 #include <Adafruit_MLX90614.h>
 #include <DHT.h>
 
+#include "secrets.h"          // copy secrets.h.example -> secrets.h, then fill in
+#ifndef USE_WIFI
+#define USE_WIFI 0
+#endif
+#if USE_WIFI
+#include <WiFi.h>
+#include <HTTPClient.h>
+#include <WiFiClientSecure.h>
+#endif
+
 // ---- DHT11 (one-wire temp/humidity)
 #define DHT_PIN  2
 #define DHT_TYPE DHT11
 
-// ---- I2C pins for the MLX90614. Match these to your actual wiring (see #defines).
+// ---- I2C pins for the MLX90614. Match these to your actual wiring.
 #define I2C_SDA 21
 #define I2C_SCL 20
 
@@ -66,6 +76,55 @@ void scanI2C() {
   if (found == 0) Serial.println("#   (none found — check wiring / pull-ups)");
 }
 
+#if USE_WIFI
+// JSON-safe number: NaN -> null (the backend's CourtIn fields are all optional).
+static String jnum(float v, int dec) { return isnan(v) ? String("null") : String(v, dec); }
+
+void connectWiFi() {
+  WiFi.mode(WIFI_STA);
+  WiFi.setAutoReconnect(true);
+  WiFi.begin(WIFI_SSID, WIFI_PASSWORD);
+  Serial.printf("# WiFi: connecting to \"%s\" ", WIFI_SSID);
+  unsigned long t0 = millis();
+  while (WiFi.status() != WL_CONNECTED && millis() - t0 < 12000) { delay(300); Serial.print("."); }
+  if (WiFi.status() == WL_CONNECTED)
+    Serial.printf("\n# WiFi: connected (IP %s) -> POSTing to %s\n",
+                  WiFi.localIP().toString().c_str(), BACKEND_URL);
+  else
+    Serial.println("\n# WiFi: NOT connected — running serial-only");
+}
+
+void postReading(float t, float h, float irO, float irA, float snd) {
+  if (WiFi.status() != WL_CONNECTED) return;
+
+  String body = String("{\"node_id\":\"") + NODE_ID + "\","
+              + "\"device_millis\":" + String(millis()) + ","
+              + "\"temp_c\":"       + jnum(t, 1)   + ","
+              + "\"humidity_pct\":" + jnum(h, 1)   + ","
+              + "\"ir_object_c\":"  + jnum(irO, 2) + ","
+              + "\"ir_ambient_c\":" + jnum(irA, 2) + ","
+              + "\"sound_pp\":"     + jnum(snd, 0) + "}";
+
+  String url = String(BACKEND_URL) + "/ingest/court";
+  HTTPClient http;
+  http.setConnectTimeout(1500);
+  http.setTimeout(1500);
+
+  WiFiClient plain;
+  WiFiClientSecure secure;
+  bool began;
+  if (url.startsWith("https")) { secure.setInsecure(); began = http.begin(secure, url); }
+  else                         { began = http.begin(plain, url); }
+
+  if (began) {
+    http.addHeader("Content-Type", "application/json");
+    http.addHeader("X-Node-Key", NODE_KEY);
+    http.POST(body);     // fire-and-forget; ignore the response
+    http.end();
+  }
+}
+#endif  // USE_WIFI
+
 void setup() {
   Serial.begin(115200);
   delay(1000);
@@ -82,6 +141,12 @@ void setup() {
   scanI2C();
   mlxOK = mlx.begin();
   if (!mlxOK) Serial.println("# WARNING: MLX90614 not found (solder the header — see README)");
+
+#if USE_WIFI
+  connectWiFi();
+#else
+  Serial.println("# WiFi disabled (USE_WIFI=0) — serial-only");
+#endif
 
   // CSV header — keep column names stable for the pipeline / backend.
   Serial.println("millis,temp_C,humidity_pct,ir_object_C,ir_ambient_C,sound_pp");
@@ -106,4 +171,8 @@ void loop() {
   Serial.print(irObj, 2);     Serial.print(",");
   Serial.print(irAmb, 2);     Serial.print(",");
   Serial.println(sound, 0);
+
+#if USE_WIFI
+  postReading(lastTemp, lastHum, irObj, irAmb, sound);
+#endif
 }

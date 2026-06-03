@@ -1,0 +1,34 @@
+# Render Blueprint — one-click cloud deploy of the Courtside backend.
+# This is the "no laptop on the beach" path: the node posts to a fixed https URL
+# from your iPhone hotspot, and the phone dashboard works anywhere with signal
+# (https also unlocks the browser geolocation button).
+#
+# Deploy:
+#   1. Push this repo to GitHub (private).
+#   2. Render dashboard -> New -> Blueprint -> pick the repo. It reads this file.
+#   3. After deploy, your URL is https://courtside-XXXX.onrender.com
+#      -> put that in firmware/include/secrets.h BACKEND_URL, reflash.
+#
+# Notes: free web services cold-start (~30-60s) after idle, so open the dashboard
+# first to wake it before a session. Free Postgres persists your data.
+services:
+  - type: web
+    name: courtside
+    runtime: python
+    plan: free
+    buildCommand: pip install -r backend/requirements.txt
+    startCommand: uvicorn app.main:app --app-dir backend --host 0.0.0.0 --port $PORT
+    envVars:
+      - key: PYTHON_VERSION
+        value: "3.11.9"
+      - key: DATABASE_URL
+        fromDatabase:
+          name: courtside-db
+          property: connectionString
+      # Optional auth: uncomment, set the same value in secrets.h NODE_KEY.
+      # - key: NODE_KEY
+      #   generateValue: true
+
+databases:
+  - name: courtside-db
+    plan: free
