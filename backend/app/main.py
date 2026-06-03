@@ -206,6 +206,31 @@ def list_sessions():
         db.close()
 
 
+# ------------------------------------------------------------------- export API
+@app.get("/api/export")
+def export_all():
+    """Full dump for the offline analysis pipeline (build_features.py)."""
+    db = SessionLocal()
+    try:
+        courts = db.execute(select(CourtReading).order_by(CourtReading.server_ts)).scalars().all()
+        sessions = db.execute(select(SessionModel).order_by(SessionModel.day)).scalars().all()
+        health = db.execute(select(HealthDaily).order_by(HealthDaily.day)).scalars().all()
+        return {
+            "court_readings": [_reading_dict(r) for r in courts],
+            "sessions": [
+                {col.name: getattr(s, col.name) for col in SessionModel.__table__.columns}
+                for s in sessions
+            ],
+            "health_daily": [
+                {"day": h.day.isoformat(), "source": h.source, "hrv_sdnn": h.hrv_sdnn,
+                 "resting_hr": h.resting_hr, "sleep_hours": h.sleep_hours}
+                for h in health
+            ],
+        }
+    finally:
+        db.close()
+
+
 # -------------------------------------------------------------------- dashboard
 app.mount("/static", StaticFiles(directory=str(STATIC_DIR)), name="static")
 

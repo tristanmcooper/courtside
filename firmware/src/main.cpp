@@ -21,6 +21,7 @@
 #include "secrets.h"          // copy secrets.h.example -> secrets.h, then fill in
 #ifndef USE_WIFI
 #define USE_WIFI 0
+
 #endif
 #if USE_WIFI
 #include <WiFi.h>
