@@ -7,9 +7,10 @@ from typing import Optional
 from fastapi import FastAPI, Header, HTTPException, Body
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
-from sqlalchemy import select, desc
+from sqlalchemy import select, desc, func
 
-from .db import Base, engine, SessionLocal, CourtReading, HealthDaily, Session as SessionModel
+from .db import (Base, engine, SessionLocal, CourtReading, HealthDaily,
+                 Session as SessionModel, ensure_columns)
 from .schemas import CourtIn, SessionIn
 
 # If NODE_KEY is set, /ingest/court requires a matching X-Node-Key header.
@@ -20,6 +21,7 @@ STATIC_DIR = Path(__file__).resolve().parent.parent / "static"
 
 app = FastAPI(title="Courtside")
 Base.metadata.create_all(engine)
+ensure_columns()  # add any newly-added model columns to existing tables
 
 
 def utcnow() -> datetime:
@@ -165,25 +167,113 @@ def api_recent(minutes: int = 5):
 
 
 # ----------------------------------------------------------------- sessions API
+_FIELDS = (
+    "day", "start_ts", "end_ts", "location", "lat", "lon", "partner", "opponent_level",
+    "subjective_rating_1_10", "peer_rating_1_10", "coach_rating_1_10", "wind_self_report",
+    "felt_state", "kills", "errors", "sets_won", "sets_lost", "notes", "status",
+)
+
+
+def _apply(row, s: SessionIn):
+    for f in _FIELDS:
+        v = getattr(s, f, None)
+        if v is not None:
+            setattr(row, f, v)
+
+
+def _session_dict(s) -> dict:
+    return {f: getattr(s, f) for f in ("session_id",) + _FIELDS}
+
+
+def _court_window(db, start, end):
+    q = select(CourtReading).order_by(CourtReading.server_ts)
+    if start is not None:
+        q = q.where(CourtReading.server_ts >= start)
+    if end is not None:
+        q = q.where(CourtReading.server_ts <= end)
+    return db.execute(q).scalars().all()
+
+
+def _aggregate(readings) -> dict:
+    def mm(attr):
+        v = [getattr(r, attr) for r in readings if getattr(r, attr) is not None]
+        return {"mean": round(sum(v) / len(v), 2), "min": round(min(v), 2),
+                "max": round(max(v), 2)} if v else None
+    return {"sand_temp": mm("ir_object_c"), "air_temp": mm("temp_c"),
+            "humidity": mm("humidity_pct"), "wind_sound": mm("sound_pp")}
+
+
+@app.post("/api/sessions/start")
+def start_session():
+    """Begin recording — bookmarks the start so the session's sensor window is known."""
+    db = SessionLocal()
+    try:
+        now = utcnow()
+        sid = now.strftime("%Y-%m-%d_%H%M%S")
+        db.add(SessionModel(session_id=sid, day=now.date(), start_ts=now, status="recording"))
+        db.commit()
+        return {"ok": True, "session_id": sid, "start_ts": now.isoformat() + "Z"}
+    finally:
+        db.close()
+
+
+@app.post("/api/sessions/{sid}/stop")
+def stop_session(sid: str, s: SessionIn):
+    """End recording (server stamps end_ts) and attach the evaluation fields."""
+    db = SessionLocal()
+    try:
+        row = db.get(SessionModel, sid)
+        if not row:
+            raise HTTPException(404, "no such session")
+        row.end_ts = utcnow()
+        row.status = "done"
+        _apply(row, s)
+        db.commit()
+        return {"ok": True, "session_id": sid}
+    finally:
+        db.close()
+
+
 @app.post("/api/sessions")
 def create_session(s: SessionIn):
+    """Create/upsert a fully-specified session (manual log, no live recording)."""
     db = SessionLocal()
     try:
         day = s.day or (s.start_ts.date() if s.start_ts else date.today())
         sid = s.session_id or f"{day.isoformat()}_{datetime.now().strftime('%H%M')}"
         row = db.get(SessionModel, sid) or SessionModel(session_id=sid)
         row.day = day
-        for field in (
-            "start_ts", "end_ts", "location", "lat", "lon", "partner",
-            "opponent_level", "subjective_rating_1_10", "wind_self_report",
-            "felt_state", "kills", "errors", "sets_won", "sets_lost", "notes",
-        ):
-            val = getattr(s, field)
-            if val is not None:
-                setattr(row, field, val)
+        _apply(row, s)
         db.add(row)
         db.commit()
         return {"ok": True, "session_id": sid}
+    finally:
+        db.close()
+
+
+@app.patch("/api/sessions/{sid}")
+def patch_session(sid: str, s: SessionIn):
+    db = SessionLocal()
+    try:
+        row = db.get(SessionModel, sid)
+        if not row:
+            raise HTTPException(404, "no such session")
+        _apply(row, s)
+        db.commit()
+        return {"ok": True, "session_id": sid}
+    finally:
+        db.close()
+
+
+@app.delete("/api/sessions/{sid}")
+def delete_session(sid: str):
+    db = SessionLocal()
+    try:
+        row = db.get(SessionModel, sid)
+        if row:
+            db.delete(row)
+            db.commit()
+        return {"ok": True}
     finally:
         db.close()
 
@@ -194,14 +284,68 @@ def list_sessions():
     try:
         rows = db.execute(select(SessionModel).order_by(desc(SessionModel.day))).scalars().all()
         return [
-            {
-                "session_id": r.session_id, "day": r.day.isoformat(),
-                "subjective_rating_1_10": r.subjective_rating_1_10,
-                "kills": r.kills, "errors": r.errors, "partner": r.partner,
-                "location": r.location, "notes": r.notes,
-            }
+            {"session_id": r.session_id, "day": r.day.isoformat(), "status": r.status,
+             "subjective_rating_1_10": r.subjective_rating_1_10,
+             "peer_rating_1_10": r.peer_rating_1_10, "coach_rating_1_10": r.coach_rating_1_10,
+             "kills": r.kills, "errors": r.errors, "partner": r.partner,
+             "location": r.location, "notes": r.notes}
             for r in rows
         ]
+    finally:
+        db.close()
+
+
+@app.get("/api/sessions/{sid}")
+def get_session(sid: str):
+    db = SessionLocal()
+    try:
+        row = db.get(SessionModel, sid)
+        if not row:
+            raise HTTPException(404, "no such session")
+        d = _session_dict(row)
+        readings = _court_window(db, row.start_ts, row.end_ts)
+        d["sensors"] = _aggregate(readings)
+        d["n_readings"] = len(readings)
+        return d
+    finally:
+        db.close()
+
+
+@app.get("/api/sessions/{sid}/readings")
+def session_readings(sid: str):
+    db = SessionLocal()
+    try:
+        row = db.get(SessionModel, sid)
+        if not row:
+            raise HTTPException(404, "no such session")
+        readings = _court_window(db, row.start_ts, row.end_ts)
+        return {"count": len(readings), "readings": [_reading_dict(r) for r in readings]}
+    finally:
+        db.close()
+
+
+@app.get("/api/summary")
+def summary():
+    db = SessionLocal()
+    try:
+        sessions = db.execute(select(SessionModel).order_by(SessionModel.day)).scalars().all()
+        rated = [s for s in sessions if s.subjective_rating_1_10 is not None]
+        ratings = [s.subjective_rating_1_10 for s in rated]
+        n_court = db.execute(select(func.count()).select_from(CourtReading)).scalar()
+        return {
+            "n_sessions": len(sessions),
+            "n_rated": len(rated),
+            "avg_rating": round(sum(ratings) / len(ratings), 2) if ratings else None,
+            "best_rating": max(ratings) if ratings else None,
+            "worst_rating": min(ratings) if ratings else None,
+            "n_court_readings": n_court,
+            "history": [
+                {"day": s.day.isoformat(), "session_id": s.session_id,
+                 "rating": s.subjective_rating_1_10, "peer": s.peer_rating_1_10,
+                 "coach": s.coach_rating_1_10}
+                for s in rated
+            ],
+        }
     finally:
         db.close()
 

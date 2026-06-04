@@ -60,6 +60,8 @@ class Session(Base):
     partner: Mapped[Optional[str]] = mapped_column(String(128))
     opponent_level: Mapped[Optional[str]] = mapped_column(String(64))
     subjective_rating_1_10: Mapped[Optional[float]] = mapped_column(Float)
+    peer_rating_1_10: Mapped[Optional[float]] = mapped_column(Float)    # teammate eval (ground truth)
+    coach_rating_1_10: Mapped[Optional[float]] = mapped_column(Float)   # coach eval (ground truth)
     wind_self_report: Mapped[Optional[int]] = mapped_column(Integer)  # 0=calm .. 5=strong
     felt_state: Mapped[Optional[str]] = mapped_column(Text)
     kills: Mapped[Optional[int]] = mapped_column(Integer)
@@ -67,3 +69,20 @@ class Session(Base):
     sets_won: Mapped[Optional[int]] = mapped_column(Integer)
     sets_lost: Mapped[Optional[int]] = mapped_column(Integer)
     notes: Mapped[Optional[str]] = mapped_column(Text)
+    status: Mapped[str] = mapped_column(String(16), default="done")  # "recording" | "done"
+
+
+def ensure_columns():
+    """Lightweight auto-migration: ADD COLUMN for any model column missing from an
+    existing table (create_all only creates missing *tables*). Postgres + SQLite."""
+    from sqlalchemy import inspect, text
+    insp = inspect(engine)
+    for table in Base.metadata.sorted_tables:
+        if not insp.has_table(table.name):
+            continue
+        existing = {c["name"] for c in insp.get_columns(table.name)}
+        for col in table.columns:
+            if col.name not in existing:
+                coltype = col.type.compile(dialect=engine.dialect)
+                with engine.begin() as conn:
+                    conn.execute(text(f'ALTER TABLE {table.name} ADD COLUMN {col.name} {coltype}'))

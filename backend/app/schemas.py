@@ -27,6 +27,8 @@ class SessionIn(BaseModel):
     partner: Optional[str] = None
     opponent_level: Optional[str] = None
     subjective_rating_1_10: Optional[float] = None
+    peer_rating_1_10: Optional[float] = None
+    coach_rating_1_10: Optional[float] = None
     wind_self_report: Optional[int] = None
     felt_state: Optional[str] = None
     kills: Optional[int] = None
@@ -34,3 +36,4 @@ class SessionIn(BaseModel):
     sets_won: Optional[int] = None
     sets_lost: Optional[int] = None
     notes: Optional[str] = None
+    status: Optional[str] = None
