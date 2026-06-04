@@ -105,3 +105,37 @@ h2 { font-size: 14px; color: var(--muted); text-transform: uppercase; letter-spa
 .sessions .sub { color: var(--muted); font-size: 12px; }
 .sessions .rate { font-weight: 700; color: #2a1605; background: linear-gradient(135deg, var(--sand-2), var(--sand));
   padding: 3px 10px; border-radius: 999px; font-size: 13px; }
+.sessions li.tap { cursor: pointer; }
+.sessions li .recdot { color: var(--bad); font-weight: 700; font-size: 12px; }
+
+/* setup-check banner */
+.banner { border-radius: 14px; padding: 11px 14px; font-size: 13.5px; font-weight: 600; line-height: 1.4;
+  border: 1px solid var(--card-bd); background: var(--card); color: var(--muted); margin-bottom: 14px; }
+.banner.ok   { color: var(--good); background: rgba(90,209,154,0.10); border-color: rgba(90,209,154,0.35); }
+.banner.warn { color: var(--sand); background: rgba(242,147,90,0.10); border-color: rgba(242,147,90,0.35); }
+.banner.err  { color: var(--bad);  background: rgba(239,106,99,0.12); border-color: rgba(239,106,99,0.40); }
+.banner ul { margin: 4px 0 0; padding-left: 18px; font-weight: 500; }
+
+/* 2x2 live mini-plots */
+.plots { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.plot { padding: 12px 13px; }
+.plot-val { font-size: 17px; font-weight: 700; } .plot-val span { font-variant-numeric: tabular-nums; }
+canvas.spark { width: 100%; height: 56px; margin-top: 6px; display: block; }
+
+/* recording control */
+.rec { margin-top: 14px; text-align: center; }
+.rec-timer { margin-top: 10px; font-size: 30px; font-weight: 750; letter-spacing: 1px;
+  font-variant-numeric: tabular-nums; display: none; }
+.primary.recording { background: linear-gradient(135deg, #ff8a80, var(--bad)); color: #2a0a08; }
+.of { color: var(--muted); font-weight: 600; }
+
+/* session detail / edit */
+#detail h2 { margin-top: 0; }
+.det-sensors { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin: 6px 0 4px; }
+.det-sensors .tile { padding: 10px 12px; } .det-sensors .tile-val { font-size: 18px; }
+.btnrow { display: flex; gap: 10px; margin-top: 18px; }
+.btnrow .primary, .btnrow .danger { margin-top: 0; flex: 1; }
+.danger { padding: 15px; border: none; border-radius: 14px; font-size: 16px; font-weight: 700;
+  background: rgba(239,106,99,0.15); color: var(--bad); border: 1px solid rgba(239,106,99,0.4); }
+
+#histChart { width: 100%; height: 170px; margin-top: 8px; display: block; }

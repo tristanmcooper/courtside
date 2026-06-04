@@ -209,7 +209,10 @@ def start_session():
     db = SessionLocal()
     try:
         now = utcnow()
-        sid = now.strftime("%Y-%m-%d_%H%M%S")
+        base = now.strftime("%Y-%m-%d_%H%M%S")
+        sid, n = base, 2
+        while db.get(SessionModel, sid) is not None:   # avoid same-second collisions
+            sid, n = f"{base}-{n}", n + 1
         db.add(SessionModel(session_id=sid, day=now.date(), start_ts=now, status="recording"))
         db.commit()
         return {"ok": True, "session_id": sid, "start_ts": now.isoformat() + "Z"}

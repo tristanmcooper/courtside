@@ -4,37 +4,32 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <title>Courtside</title>
-  <link rel="stylesheet" href="/static/style.css">
+  <link rel="stylesheet" href="/static/style.css?v=2">
 </head>
 <body>
 <div class="app">
 
   <div class="hdr">
-    <div class="brand">
-      <div class="logo"></div>
-      <h1>Courtside</h1>
-    </div>
-    <div id="status" class="status offline">
-      <span class="dot"></span><span id="statusText">connecting…</span>
-    </div>
+    <div class="brand"><div class="logo"></div><h1>Courtside</h1></div>
+    <div id="status" class="status offline"><span class="dot"></span><span id="statusText">connecting…</span></div>
   </div>
 
   <div class="tabs">
-    <button class="tab active" data-tab="live">Live</button>
-    <button class="tab" data-tab="log">Log session</button>
+    <button class="tab active" data-tab="record">Record</button>
+    <button class="tab" data-tab="sessions">Sessions</button>
+    <button class="tab" data-tab="summary">Summary</button>
   </div>
 
-  <!-- ---------------------------------------------------------------- LIVE -->
-  <section id="live" class="panel active">
+  <!-- ============================ RECORD / SETUP ============================ -->
+  <section id="record" class="panel active">
+
+    <div id="setupBanner" class="banner">Checking setup…</div>
 
     <div class="hero">
       <svg class="ring" viewBox="0 0 36 36">
-        <defs>
-          <linearGradient id="grad" x1="0%" y1="0%" x2="100%" y2="100%">
-            <stop offset="0%" stop-color="#ffd29a"/>
-            <stop offset="100%" stop-color="#f2935a"/>
-          </linearGradient>
-        </defs>
+        <defs><linearGradient id="grad" x1="0%" y1="0%" x2="100%" y2="100%">
+          <stop offset="0%" stop-color="#ffd29a"/><stop offset="100%" stop-color="#f2935a"/>
+        </linearGradient></defs>
         <circle class="ring-track" cx="18" cy="18" r="15.915"/>
         <circle class="ring-fill" id="ringFill" cx="18" cy="18" r="15.915"/>
       </svg>
@@ -44,53 +39,47 @@
       </div>
     </div>
 
-    <div class="card wind">
-      <div class="row-between">
-        <span class="card-label">Wind / sound</span>
-        <span class="wind-val"><span id="sound">–</span> <span class="unit">pp</span></span>
+    <div class="plots">
+      <div class="plot card">
+        <div class="row-between"><span class="card-label">Sand IR</span><span class="plot-val"><span id="v_sand">–</span>°C</span></div>
+        <canvas class="spark" data-key="ir_object_c" data-color="#f2935a"></canvas>
       </div>
-      <canvas id="sparkline" width="640" height="90"></canvas>
-    </div>
-
-    <div class="tiles">
-      <div class="tile">
-        <div class="card-label">Air</div>
-        <div class="tile-val"><span id="temp">–</span><span class="unit">°C</span></div>
+      <div class="plot card">
+        <div class="row-between"><span class="card-label">Air temp</span><span class="plot-val"><span id="v_air">–</span>°C</span></div>
+        <canvas class="spark" data-key="temp_c" data-color="#ffd29a"></canvas>
       </div>
-      <div class="tile">
-        <div class="card-label">Humidity</div>
-        <div class="tile-val"><span id="humidity">–</span><span class="unit">%</span></div>
+      <div class="plot card">
+        <div class="row-between"><span class="card-label">Humidity</span><span class="plot-val"><span id="v_hum">–</span>%</span></div>
+        <canvas class="spark" data-key="humidity_pct" data-color="#76d6c0"></canvas>
       </div>
-      <div class="tile">
-        <div class="card-label">IR ambient</div>
-        <div class="tile-val"><span id="ir_ambient">–</span><span class="unit">°C</span></div>
+      <div class="plot card">
+        <div class="row-between"><span class="card-label">Wind / sound</span><span class="plot-val"><span id="v_wind">–</span></span></div>
+        <canvas class="spark" data-key="sound_pp" data-color="#9db8ff"></canvas>
       </div>
     </div>
 
-    <p class="hint">Watch the sand ring &amp; wind trace to pick the tripod spot, then
-       keep this open courtside while you play. (Sand stays blank until the MLX90614
-       is soldered &amp; shows <code>0x5A</code>.)</p>
-  </section>
+    <div class="card rec">
+      <button id="recBtn" class="primary">● Start recording</button>
+      <div id="recTimer" class="rec-timer"></div>
+      <div class="hint" style="margin:10px 2px 0">Recording bookmarks the start/stop so this
+        session's sensor time-series is captured. Set the tripod, confirm the plots look stable, then start.</div>
+    </div>
 
-  <!-- ----------------------------------------------------------------- LOG -->
-  <section id="log" class="panel">
-    <form id="sessionForm" class="card">
-      <label class="fld">Date
-        <input type="date" name="day" required>
-      </label>
-
-      <label class="fld">How did you play? <b class="big-num" id="ratingVal">5</b>/10
-        <input type="range" name="subjective_rating_1_10" min="1" max="10" value="5" step="1">
-      </label>
+    <!-- evaluation form (revealed after Stop) -->
+    <form id="evalForm" class="card" style="display:none; margin-top:14px;">
+      <h2 style="margin-top:0">Session evaluation</h2>
+      <label class="fld">How did <b>you</b> play? <b class="big-num" id="selfVal">5</b><span class="of">/10</span>
+        <input type="range" name="subjective_rating_1_10" min="1" max="10" value="5" step="1"></label>
+      <label class="fld">Peer / teammate rating <b class="big-num" id="peerVal">–</b>
+        <input type="range" name="peer_rating_1_10" min="0" max="10" value="0" step="1"></label>
+      <label class="fld">Coach rating <b class="big-num" id="coachVal">–</b>
+        <input type="range" name="coach_rating_1_10" min="0" max="10" value="0" step="1"></label>
 
       <div class="fld">Wind (how it felt)
         <div class="seg" id="windSeg">
-          <button type="button" data-v="0">calm</button>
-          <button type="button" data-v="1">light</button>
-          <button type="button" data-v="2">gentle</button>
-          <button type="button" data-v="3">mod</button>
-          <button type="button" data-v="4">fresh</button>
-          <button type="button" data-v="5">strong</button>
+          <button type="button" data-v="0">calm</button><button type="button" data-v="1">light</button>
+          <button type="button" data-v="2">gentle</button><button type="button" data-v="3">mod</button>
+          <button type="button" data-v="4">fresh</button><button type="button" data-v="5">strong</button>
         </div>
         <input type="hidden" name="wind_self_report">
       </div>
@@ -103,27 +92,42 @@
         <label class="fld">Sets won <input type="number" name="sets_won" inputmode="numeric"></label>
         <label class="fld">Sets lost <input type="number" name="sets_lost" inputmode="numeric"></label>
       </div>
-
       <label class="fld">Partner <input type="text" name="partner"></label>
       <label class="fld">Opponent level <input type="text" name="opponent_level"></label>
       <label class="fld">Court / location <input type="text" name="location" placeholder="e.g. La Jolla Shores"></label>
-
       <button type="button" id="geoBtn" class="ghost">📍 Use my location</button>
       <div id="geoStatus" class="geomsg"></div>
       <input type="hidden" name="lat"><input type="hidden" name="lon">
-
       <label class="fld">Felt state <input type="text" name="felt_state" placeholder="loose, tired, dialed-in…"></label>
       <label class="fld">Notes <textarea name="notes" rows="2"></textarea></label>
 
-      <button type="submit" class="primary">Save session</button>
-      <div id="formMsg" class="formmsg"></div>
+      <button type="submit" class="primary">Save evaluation</button>
+      <div id="evalMsg" class="formmsg"></div>
     </form>
+  </section>
 
-    <h2>Recent sessions</h2>
+  <!-- ============================== SESSIONS =============================== -->
+  <section id="sessions" class="panel">
     <ul id="sessionList" class="sessions"></ul>
+    <div id="detail" class="card" style="display:none; margin-top:8px;"></div>
+  </section>
+
+  <!-- ============================== SUMMARY ================================ -->
+  <section id="summary" class="panel">
+    <div class="tiles">
+      <div class="tile"><div class="card-label">Sessions</div><div class="tile-val" id="s_n">–</div></div>
+      <div class="tile"><div class="card-label">Avg self</div><div class="tile-val" id="s_avg">–</div></div>
+      <div class="tile"><div class="card-label">Best</div><div class="tile-val" id="s_best">–</div></div>
+    </div>
+    <div class="card" style="margin-top:12px;">
+      <div class="card-label">Self rating over time</div>
+      <canvas id="histChart" width="640" height="170"></canvas>
+    </div>
+    <h2>All sessions</h2>
+    <ul id="summaryList" class="sessions"></ul>
   </section>
 
 </div>
-<script src="/static/app.js"></script>
+<script src="/static/app.js?v=2"></script>
 </body>
 </html>
