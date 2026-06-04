@@ -41,6 +41,32 @@ def _agg_court(sub: pd.DataFrame) -> dict:
     }
 
 
+def _load_oura():
+    """Oura daily recovery (second wearable source, for cross-validating Apple Watch)."""
+    base = Path(__file__).resolve().parent.parent / "oura" / "oura_csvs"
+    sp = base / "oura_sleep_periods.csv"
+    if not sp.exists():
+        return None
+    # only the columns we need — the full file has giant digit-string columns
+    # (sleep-phase arrays) that overflow pandas' numeric inference.
+    s = pd.read_csv(sp, usecols=lambda c: c in {
+        "day", "average_hrv", "lowest_heart_rate", "total_sleep_duration"})
+    s["day"] = pd.to_datetime(s["day"]).dt.date
+    s = s.sort_values("total_sleep_duration", ascending=False).groupby("day", as_index=False).first()
+    out = pd.DataFrame({
+        "day": s["day"],
+        "oura_hrv": s["average_hrv"] if "average_hrv" in s else np.nan,
+        "oura_resting_hr": s["lowest_heart_rate"] if "lowest_heart_rate" in s else np.nan,
+        "oura_sleep_hours": (s["total_sleep_duration"] / 3600.0) if "total_sleep_duration" in s else np.nan,
+    })
+    rd = base / "oura_daily_readiness.csv"
+    if rd.exists():
+        r = pd.read_csv(rd, usecols=lambda c: c in {"day", "score"})
+        r["day"] = pd.to_datetime(r["day"]).dt.date
+        out = out.merge(r.rename(columns={"score": "oura_readiness"}), on="day", how="left")
+    return out
+
+
 def main():
     data = requests.get(f"{BACKEND_URL}/api/export", timeout=30).json()
     sessions = pd.DataFrame(data["sessions"])
@@ -81,8 +107,17 @@ def main():
         health["_rank"] = (health["source"] != "apple").astype(int)
         health = (health.sort_values(["day", "_rank"])
                         .groupby("day", as_index=False).first())
-        sessions = sessions.merge(
-            health[["day", "hrv_sdnn", "resting_hr", "sleep_hours"]], on="day", how="left")
+        hcols = [c for c in ["day", "hrv_sdnn", "resting_hr", "sleep_hours", "respiratory_rate"]
+                 if c in health.columns]
+        sessions = sessions.merge(health[hcols], on="day", how="left")
+
+    # Oura as a second recovery source (validation): Apple HRV=SDNN, Oura=RMSSD
+    try:
+        oura = _load_oura()
+        if oura is not None and not oura.empty:
+            sessions = sessions.merge(oura, on="day", how="left")
+    except Exception as e:
+        print(f"  oura merge skipped: {e}")
 
     # regional weather (Open-Meteo) per session lat/lon, at ~mid-afternoon local
     wcols = ["weather_wind_ms", "weather_gust_ms", "weather_temp_c", "weather_humidity_pct"]

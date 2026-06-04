@@ -45,7 +45,8 @@ class HealthDaily(Base):
     hrv_sdnn: Mapped[Optional[float]] = mapped_column(Float)
     resting_hr: Mapped[Optional[float]] = mapped_column(Float)
     sleep_hours: Mapped[Optional[float]] = mapped_column(Float)
-    raw: Mapped[Optional[dict]] = mapped_column(JSON)
+    respiratory_rate: Mapped[Optional[float]] = mapped_column(Float)
+    raw: Mapped[Optional[dict]] = mapped_column(JSON)  # every metric HAE sent (lossless)
 
 
 class Session(Base):

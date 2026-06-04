@@ -177,6 +177,8 @@ ef.addEventListener('submit', async (e) => {
 
 // ---------- sessions list + detail/edit ----------
 async function loadSessions() {
+  $('sessionList').style.display = '';   // reset full-page detail
+  $('detail').style.display = 'none';
   try {
     const rows = await (await fetch('/api/sessions')).json();
     const ul = $('sessionList');
@@ -209,8 +211,10 @@ async function showDetail(sid) {
   const fields = EDIT.map(([k, label, type]) =>
     `<label class="fld">${label}<input name="${k}" type="${type}" ${type === 'number' ? 'inputmode="numeric"' : ''} value="${d[k] != null ? d[k] : ''}"></label>`).join('');
   const el = $('detail');
+  $('sessionList').style.display = 'none';   // full-page detail
   el.style.display = 'block';
   el.innerHTML = `
+    <button type="button" id="backBtn" class="ghost" style="margin-top:0;width:100%">← Back to sessions</button>
     <h2>${d.day} · ${d.status}${d.n_readings ? ` · ${d.n_readings} sensor samples` : ''}</h2>
     <div class="det-sensors">
       <div class="tile"><div class="card-label">Sand IR</div><div class="tile-val">${mm(s.sand_temp, '°')}</div></div>
@@ -223,7 +227,9 @@ async function showDetail(sid) {
       <button type="button" id="delBtn" class="danger">Delete</button></div>
       <div id="editMsg" class="formmsg"></div>
     </form>`;
-  el.scrollIntoView({ behavior: 'smooth' });
+  window.scrollTo(0, 0);
+  const showList = () => { el.style.display = 'none'; $('sessionList').style.display = ''; };
+  $('backBtn').addEventListener('click', showList);
   $('editForm').addEventListener('submit', async (e) => {
     e.preventDefault();
     const body = {};

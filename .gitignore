@@ -28,3 +28,6 @@ firmware/.pio/
 .claude/
 *.db
 *.sqlite3
+
+# generated feature tables / rankings (personal data)
+features/

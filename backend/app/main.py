@@ -72,6 +72,7 @@ def ingest_court(reading: CourtIn, x_node_key: Optional[str] = Header(default=No
 _HRV_NAMES = {"heart_rate_variability", "hrv", "heart_rate_variability_sdnn"}
 _RHR_NAMES = {"resting_heart_rate"}
 _SLEEP_NAMES = {"sleep_analysis"}
+_RESP_NAMES = {"respiratory_rate"}
 
 
 def _day_of(point: dict) -> Optional[str]:
@@ -100,25 +101,27 @@ def ingest_health(payload: dict = Body(...)):
             day = _day_of(point)
             if not day:
                 continue
-            slot = by_day.setdefault(day, {})
-            if name in _HRV_NAMES:
-                v = _num(point, "qty", "value", "Avg", "avg")
-                if v is not None:
-                    slot["hrv_sdnn"] = v
-            elif name in _RHR_NAMES:
-                v = _num(point, "qty", "value")
-                if v is not None:
-                    slot["resting_hr"] = v
+            slot = by_day.setdefault(day, {"raw": {}})
+            qty = _num(point, "qty", "value", "Avg", "avg", "asleep", "totalSleep")
+            if qty is not None:
+                slot["raw"][name] = qty          # lossless: keep every metric HAE sent
+            if name in _HRV_NAMES and qty is not None:
+                slot["hrv_sdnn"] = qty
+            elif name in _RHR_NAMES and qty is not None:
+                slot["resting_hr"] = qty
+            elif name in _RESP_NAMES and qty is not None:
+                slot["respiratory_rate"] = qty
             elif name in _SLEEP_NAMES:
-                v = _num(point, "asleep", "totalSleep", "value", "qty")
-                if v is not None:
-                    slot["sleep_hours"] = v
+                sv = _num(point, "asleep", "totalSleep", "value", "qty")
+                if sv is not None:
+                    slot["sleep_hours"] = sv
 
     db = SessionLocal()
     written = 0
     try:
         for day_str, vals in by_day.items():
-            if not vals:
+            raw = vals.pop("raw", {})
+            if not vals and not raw:
                 continue
             day = date.fromisoformat(day_str)
             existing = db.execute(
@@ -129,7 +132,7 @@ def ingest_health(payload: dict = Body(...)):
                 db.add(existing)
             for k, v in vals.items():
                 setattr(existing, k, v)
-            existing.raw = vals
+            existing.raw = raw
             written += 1
         db.commit()
     finally:
@@ -370,7 +373,8 @@ def export_all():
             ],
             "health_daily": [
                 {"day": h.day.isoformat(), "source": h.source, "hrv_sdnn": h.hrv_sdnn,
-                 "resting_hr": h.resting_hr, "sleep_hours": h.sleep_hours}
+                 "resting_hr": h.resting_hr, "sleep_hours": h.sleep_hours,
+                 "respiratory_rate": h.respiratory_rate, "raw": h.raw}
                 for h in health
             ],
         }
