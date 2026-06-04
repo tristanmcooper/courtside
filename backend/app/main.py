@@ -112,9 +112,13 @@ def ingest_health(payload: dict = Body(...)):
             elif name in _RESP_NAMES and qty is not None:
                 slot["respiratory_rate"] = qty
             elif name in _SLEEP_NAMES:
-                sv = _num(point, "asleep", "totalSleep", "value", "qty")
-                if sv is not None:
-                    slot["sleep_hours"] = sv
+                sv = _num(point, "asleep", "totalSleep", "value", "qty", "asleepUnspecified")
+                if not sv:   # 0 or None -> sum the asleep stages (HAE v2 shape)
+                    sv = sum(point[k] for k in ("core", "deep", "rem", "asleepUnspecified")
+                             if isinstance(point.get(k), (int, float)))
+                if sv:
+                    slot["sleep_hours"] = float(sv)
+                slot["raw"]["sleep_analysis"] = {k: v for k, v in point.items() if k != "date"}
 
     db = SessionLocal()
     written = 0
