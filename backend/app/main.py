@@ -298,7 +298,8 @@ def list_sessions():
              "subjective_rating_1_10": r.subjective_rating_1_10,
              "peer_rating_1_10": r.peer_rating_1_10, "coach_rating_1_10": r.coach_rating_1_10,
              "kills": r.kills, "errors": r.errors, "partner": r.partner,
-             "location": r.location, "notes": r.notes}
+             "location": r.location, "notes": r.notes,
+             "sensors": _aggregate(_court_window(db, r.start_ts, r.end_ts)) if r.start_ts else {}}
             for r in rows
         ]
     finally:
