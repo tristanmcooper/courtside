@@ -30,6 +30,11 @@ class SessionIn(BaseModel):
     peer_rating_1_10: Optional[float] = None
     coach_rating_1_10: Optional[float] = None
     wind_self_report: Optional[int] = None
+    energy_1_5: Optional[int] = None
+    soreness_1_5: Optional[int] = None
+    mental_1_5: Optional[int] = None
+    warmup_1_5: Optional[int] = None
+    food_timing: Optional[str] = None
     felt_state: Optional[str] = None
     kills: Optional[int] = None
     errors: Optional[int] = None

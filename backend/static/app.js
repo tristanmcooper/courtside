@@ -20,6 +20,7 @@ const ICONS = {
   trash: S('<path d="M3 6h18M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2m2 0v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6"/>'),
   back: S('<path d="M19 12H5"/><path d="m12 19-7-7 7-7"/>'),
   bulb: S('<path d="M9 18h6M10 22h4"/><path d="M12 2a7 7 0 0 0-4 12c.6.6 1 1.5 1 3h6c0-1.5.4-2.4 1-3a7 7 0 0 0-4-12Z"/>'),
+  workout: S('<path d="M22 12h-4l-3 9L9 3l-3 9H2"/>'),
 };
 const drawIcons = (root = document) =>
   root.querySelectorAll('[data-icon]').forEach(e => { e.innerHTML = ICONS[e.dataset.icon] || ''; });
@@ -45,6 +46,13 @@ function interp(sand) {
   if (sand < 35) return 'Comfortable';
   if (sand < 45) return 'Warm';
   return 'Hot';
+}
+function windLabel(s) {
+  if (s == null) return '—';
+  if (s < 120) return 'Calm';
+  if (s < 280) return 'Breezy';
+  if (s < 600) return 'Windy';
+  return 'Strong';
 }
 
 // ---------- tabs ----------
@@ -95,12 +103,12 @@ async function pollLive() {
     else if (j.reading && j.age_s < 120) { status.className = 'status stale'; st.textContent = `Last reading ${humanAge(j.age_s)}`; }
     else if (j.reading) { status.className = 'status offline'; st.textContent = `Offline · last seen ${humanAge(j.age_s)}`; }
     else { status.className = 'status offline'; st.textContent = 'Offline · no data yet'; }
-    $('heroVal').textContent = fmt(d.ir_object_c); setRing(d.ir_object_c);
-    $('interp').textContent = interp(d.ir_object_c);
     $('v_sand').textContent = fmt(d.ir_object_c);
+    $('t_sand').textContent = interp(d.ir_object_c);
     $('v_air').textContent = fmt(d.temp_c);
     $('v_hum').textContent = fmt(d.humidity_pct, 0);
     $('v_wind').textContent = fmt(d.sound_pp, 0);
+    $('t_wind').textContent = windLabel(d.sound_pp);
   } catch (e) { status.className = 'status offline'; st.textContent = 'Disconnected'; }
 }
 async function pollPlots() {
@@ -160,6 +168,10 @@ const bindSlider = (name, label, dash) => {
 bindSlider('subjective_rating_1_10', 'selfVal', false);
 bindSlider('peer_rating_1_10', 'peerVal', true);
 bindSlider('coach_rating_1_10', 'coachVal', true);
+bindSlider('energy_1_5', 'energyVal', false);
+bindSlider('soreness_1_5', 'soreVal', false);
+bindSlider('mental_1_5', 'mentalVal', false);
+bindSlider('warmup_1_5', 'warmupVal', false);
 $('windSeg').addEventListener('click', e => {
   const b = e.target.closest('button'); if (!b) return;
   $('windSeg').querySelectorAll('button').forEach(x => x.classList.remove('on'));
@@ -175,7 +187,8 @@ $('geoBtn').addEventListener('click', () => {
     s.textContent = `📍 ${p.coords.latitude.toFixed(4)}, ${p.coords.longitude.toFixed(4)}`;
   }, err => { s.textContent = 'Location failed: ' + err.message; }, { enableHighAccuracy: true, timeout: 10000 });
 });
-const INT_F = ['kills', 'errors', 'sets_won', 'sets_lost', 'wind_self_report'];
+const INT_F = ['kills', 'errors', 'sets_won', 'sets_lost', 'wind_self_report',
+  'energy_1_5', 'soreness_1_5', 'mental_1_5', 'warmup_1_5'];
 const FLOAT_F = ['subjective_rating_1_10', 'peer_rating_1_10', 'coach_rating_1_10', 'lat', 'lon'];
 ef.addEventListener('submit', async (e) => {
   e.preventDefault();
@@ -217,7 +230,8 @@ async function loadSessions() {
           : '<span class="badge none">Unrated</span>';
       const meta = [s.partner, s.location].filter(Boolean).join(' · ') || 'No notes';
       const cond = condStr(s.sensors);
-      li.innerHTML = `<div><div class="s-date">${fmtDate(s.day)}</div><div class="s-meta">${meta}</div>${cond ? `<div class="s-cond">${cond}</div>` : ''}</div>${badge}`;
+      const wk = s.has_workout ? `<span class="wk" title="Apple Watch workout paired">${ICONS.workout}</span>` : '';
+      li.innerHTML = `<div><div class="s-date">${fmtDate(s.day)}</div><div class="s-meta">${meta}</div>${cond ? `<div class="s-cond">${cond}</div>` : ''}</div><div class="rt">${wk}${badge}</div>`;
       li.addEventListener('click', () => showDetail(s.session_id));
       ul.appendChild(li);
     });
@@ -227,6 +241,7 @@ async function loadSessions() {
 const PERF = [['subjective_rating_1_10', 'Self (0–10)'], ['peer_rating_1_10', 'Peer'], ['coach_rating_1_10', 'Coach'],
 ['kills', 'Kills'], ['errors', 'Errors'], ['sets_won', 'Sets won'], ['sets_lost', 'Sets lost']];
 const CTX = [['partner', 'Partner'], ['opponent_level', 'Opponent'], ['location', 'Location'], ['felt_state', 'Felt state']];
+const STATE = [['energy_1_5', 'Energy (1–5)'], ['soreness_1_5', 'Soreness (1–5)'], ['mental_1_5', 'Mental (1–5)'], ['warmup_1_5', 'Warm-up (1–5)']];
 const val = (d, k) => (d[k] != null ? d[k] : '');
 async function showDetail(sid) {
   const d = await (await fetch(`/api/sessions/${encodeURIComponent(sid)}`)).json();
@@ -238,15 +253,18 @@ async function showDetail(sid) {
   $('sessionList').style.display = 'none'; el.style.display = 'block';
   el.innerHTML = `
     <button type="button" id="backBtn" class="btn secondary" style="margin-bottom:14px"><span class="ic">${ICONS.back}</span>Back to sessions</button>
-    <h2 class="eyebrow" style="margin:0 2px 8px">${fmtDate(d.day)}${d.n_readings ? ` · ${d.n_readings} sensor samples` : ''}</h2>
+    <h2 class="eyebrow" style="margin:0 2px 8px">${fmtDate(d.day)}${d.n_readings ? ` · ${d.n_readings} sensor samples` : ''}${d.has_workout ? ` · <span class="det-paired">${ICONS.workout} workout paired</span>` : ''}</h2>
     <div class="section-title" style="margin-top:6px"><span class="ic">${ICONS.sand}</span>Conditions</div>
     <div class="det-sensors">
-      ${tile('Sand IR', s.sand_temp, '°')}${tile('Air', s.air_temp, '°')}
+      ${tile('Surface temp', s.sand_temp, '°')}${tile('Air', s.air_temp, '°')}
       ${tile('Humidity', s.humidity, '%')}${tile('Wind/audio', s.wind_sound, '')}
     </div>
     <form id="editForm">
       <div class="section-title"><span class="ic">${ICONS.summary}</span>Performance</div>
       <div class="grid2">${PERF.map(num).join('')}</div>
+      <div class="section-title"><span class="ic">${ICONS.air}</span>Player state</div>
+      <div class="grid2">${STATE.map(num).join('')}</div>
+      <label class="fld">Food timing<input name="food_timing" type="text" value="${val(d, 'food_timing')}"></label>
       <div class="section-title"><span class="ic">${ICONS.notes}</span>Context</div>
       ${CTX.map(txt).join('')}
       <label class="fld">Notes<textarea name="notes" rows="2">${val(d, 'notes')}</textarea></label>

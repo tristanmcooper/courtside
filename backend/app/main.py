@@ -237,8 +237,20 @@ def api_recent(minutes: int = 5):
 _FIELDS = (
     "day", "start_ts", "end_ts", "location", "lat", "lon", "partner", "opponent_level",
     "subjective_rating_1_10", "peer_rating_1_10", "coach_rating_1_10", "wind_self_report",
+    "energy_1_5", "soreness_1_5", "mental_1_5", "warmup_1_5", "food_timing",
     "felt_state", "kills", "errors", "sets_won", "sets_lost", "notes", "status",
 )
+
+
+def _has_workout(db, start, end) -> bool:
+    """True if an Apple Watch workout overlaps the session's [start, end] window."""
+    if start is None or end is None:
+        return False
+    n = db.execute(
+        select(func.count()).select_from(Workout)
+        .where(Workout.start_ts <= end, Workout.end_ts >= start)
+    ).scalar()
+    return bool(n)
 
 
 def _apply(row, s: SessionIn):
@@ -359,6 +371,7 @@ def list_sessions():
              "peer_rating_1_10": r.peer_rating_1_10, "coach_rating_1_10": r.coach_rating_1_10,
              "kills": r.kills, "errors": r.errors, "partner": r.partner,
              "location": r.location, "notes": r.notes,
+             "has_workout": _has_workout(db, r.start_ts, r.end_ts),
              "sensors": _aggregate(_court_window(db, r.start_ts, r.end_ts)) if r.start_ts else {}}
             for r in rows
         ]
@@ -377,6 +390,7 @@ def get_session(sid: str):
         readings = _court_window(db, row.start_ts, row.end_ts)
         d["sensors"] = _aggregate(readings)
         d["n_readings"] = len(readings)
+        d["has_workout"] = _has_workout(db, row.start_ts, row.end_ts)
         return d
     finally:
         db.close()

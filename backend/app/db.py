@@ -64,6 +64,11 @@ class Session(Base):
     peer_rating_1_10: Mapped[Optional[float]] = mapped_column(Float)    # teammate eval (ground truth)
     coach_rating_1_10: Mapped[Optional[float]] = mapped_column(Float)   # coach eval (ground truth)
     wind_self_report: Mapped[Optional[int]] = mapped_column(Integer)  # 0=calm .. 5=strong
+    energy_1_5: Mapped[Optional[int]] = mapped_column(Integer)      # player state (survey-driven)
+    soreness_1_5: Mapped[Optional[int]] = mapped_column(Integer)
+    mental_1_5: Mapped[Optional[int]] = mapped_column(Integer)
+    warmup_1_5: Mapped[Optional[int]] = mapped_column(Integer)
+    food_timing: Mapped[Optional[str]] = mapped_column(String(64))
     felt_state: Mapped[Optional[str]] = mapped_column(Text)
     kills: Mapped[Optional[int]] = mapped_column(Integer)
     errors: Mapped[Optional[int]] = mapped_column(Integer)

@@ -6,7 +6,7 @@
   <title>Courtside</title>
   <link rel="preconnect" href="https://rsms.me/">
   <link rel="stylesheet" href="https://rsms.me/inter/inter.css">
-  <link rel="stylesheet" href="/static/style.css?v=5">
+  <link rel="stylesheet" href="/static/style.css?v=7">
 </head>
 <body>
 <div class="app">
@@ -27,27 +27,17 @@
 
   <!-- ============================ RECORD ============================ -->
   <section id="record" class="panel active">
-    <div class="hero-wrap">
-      <div class="hero">
-        <svg class="ring" viewBox="0 0 36 36">
-          <defs><linearGradient id="grad" x1="0%" y1="0%" x2="100%" y2="100%">
-            <stop offset="0%" stop-color="#67e8d1"/><stop offset="100%" stop-color="#f6b26b"/>
-          </linearGradient></defs>
-          <circle class="ring-track" cx="18" cy="18" r="15.915"/>
-          <circle class="ring-fill" id="ringFill" cx="18" cy="18" r="15.915"/>
-        </svg>
-        <div class="hero-center">
-          <div class="hero-val"><span id="heroVal">–</span><span class="deg">°C</span></div>
-          <div class="hero-label">Sand surface</div>
-        </div>
-      </div>
-      <span id="interp" class="interp">—</span>
-    </div>
-
+    <h2 class="eyebrow" style="margin-top:2px">Court conditions · live</h2>
     <div class="plots">
       <div class="plot card">
-        <div class="row-between"><span class="card-label"><span class="ic" data-icon="sand"></span>Sand IR</span><span class="plot-val"><span id="v_sand">–</span><span class="u">°C</span></span></div>
+        <div class="row-between"><span class="card-label"><span class="ic" data-icon="sand"></span>Surface temp</span><span class="plot-val"><span id="v_sand">–</span><span class="u">°C</span></span></div>
+        <span class="tag sand" id="t_sand">—</span>
         <canvas class="spark" data-key="ir_object_c" data-color="#f6b26b"></canvas>
+      </div>
+      <div class="plot card">
+        <div class="row-between"><span class="card-label"><span class="ic" data-icon="wind"></span>Wind proxy</span><span class="plot-val"><span id="v_wind">–</span></span></div>
+        <span class="tag aqua" id="t_wind">—</span>
+        <canvas class="spark" data-key="sound_pp" data-color="#9db8ff"></canvas>
       </div>
       <div class="plot card">
         <div class="row-between"><span class="card-label"><span class="ic" data-icon="air"></span>Air temp</span><span class="plot-val"><span id="v_air">–</span><span class="u">°C</span></span></div>
@@ -56,10 +46,6 @@
       <div class="plot card">
         <div class="row-between"><span class="card-label"><span class="ic" data-icon="humidity"></span>Humidity</span><span class="plot-val"><span id="v_hum">–</span><span class="u">%</span></span></div>
         <canvas class="spark" data-key="humidity_pct" data-color="#67e8d1"></canvas>
-      </div>
-      <div class="plot card">
-        <div class="row-between"><span class="card-label"><span class="ic" data-icon="wind"></span>Wind / audio</span><span class="plot-val"><span id="v_wind">–</span></span></div>
-        <canvas class="spark" data-key="sound_pp" data-color="#9db8ff"></canvas>
       </div>
     </div>
 
@@ -86,6 +72,26 @@
         <label class="fld">Sets won <input type="number" name="sets_won" inputmode="numeric"></label>
         <label class="fld">Sets lost <input type="number" name="sets_lost" inputmode="numeric"></label>
       </div>
+
+      <div class="section-title"><span class="ic" data-icon="air"></span>Player state</div>
+      <label class="fld">Energy <b class="sliderval" id="energyVal">3</b><span class="of">/5</span>
+        <input type="range" name="energy_1_5" min="1" max="5" value="3" step="1"></label>
+      <label class="fld">Soreness <b class="sliderval" id="soreVal">3</b><span class="of">/5</span>
+        <input type="range" name="soreness_1_5" min="1" max="5" value="3" step="1"></label>
+      <label class="fld">Mental / confidence <b class="sliderval" id="mentalVal">3</b><span class="of">/5</span>
+        <input type="range" name="mental_1_5" min="1" max="5" value="3" step="1"></label>
+      <label class="fld">Warm-up quality <b class="sliderval" id="warmupVal">3</b><span class="of">/5</span>
+        <input type="range" name="warmup_1_5" min="1" max="5" value="3" step="1"></label>
+      <label class="fld">Food timing
+        <select name="food_timing">
+          <option value="">—</option>
+          <option>Empty / fasted</option>
+          <option>Light snack</option>
+          <option>Full meal &lt;1h before</option>
+          <option>Full meal 1–3h before</option>
+          <option>Well-fueled</option>
+        </select>
+      </label>
 
       <div class="section-title"><span class="ic" data-icon="wind"></span>Conditions</div>
       <div class="fld">Wind (how it felt)
@@ -150,6 +156,6 @@
   </section>
 
 </div>
-<script src="/static/app.js?v=5"></script>
+<script src="/static/app.js?v=7"></script>
 </body>
 </html>

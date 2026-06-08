@@ -43,6 +43,7 @@ CANDIDATES = [
     "hrv_sdnn", "resting_hr", "sleep_hours", "respiratory_rate",
     "oura_hrv", "oura_resting_hr", "oura_sleep_hours", "oura_readiness",
     "insession_hr_avg", "insession_hr_max", "insession_energy", "load_7d_energy",
+    "energy_1_5", "soreness_1_5", "mental_1_5", "warmup_1_5",
     "weather_wind_ms", "weather_gust_ms", "weather_temp_c", "weather_humidity_pct",
     "wind_self_report",
 ]
