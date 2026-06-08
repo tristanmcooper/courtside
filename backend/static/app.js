@@ -496,7 +496,12 @@ async function loadMap() {
   renderCourtList(courts);
   if (!courts.length) { empty.style.display = 'block'; view.style.display = 'none'; return; }
   empty.style.display = 'none'; view.style.display = 'block';
-  if (typeof L === 'undefined') { view.innerHTML = '<div class="empty-card">Map library still loading — reopen this tab in a moment.</div>'; return; }
+  if (typeof L === 'undefined') {
+    view.innerHTML = '<div class="empty-card">Loading map…</div>';
+    if ((loadMap._tries = (loadMap._tries || 0) + 1) < 40) setTimeout(loadMap, 250);
+    return;
+  }
+  loadMap._tries = 0;
   if (!_map) {
     _map = L.map(view, { scrollWheelZoom: false });
     L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',
@@ -601,6 +606,17 @@ document.addEventListener('click', e => {
   if (el) showPerson(el.dataset.person);
 });
 
+// ---------- deep links (#map, #summary, #person=<id>) ----------
+function routeHash() {
+  const h = (location.hash || '').slice(1);
+  if (!h) return;
+  const m = h.match(/^person=(.+)$/);
+  if (m) { const t = document.querySelector('[data-tab="summary"]'); if (t) t.click(); showPerson(decodeURIComponent(m[1])); return; }
+  const tab = document.querySelector(`[data-tab="${h}"]`);
+  if (tab) tab.click();
+}
+window.addEventListener('hashchange', routeHash);
+
 // ---------- boot ----------
 drawIcons();
 loadPeople();
@@ -608,3 +624,4 @@ if (localStorage.getItem('activeSessionId')) setRecordingUI(true);
 pollLive(); pollPlots();
 setInterval(pollLive, 1000);
 setInterval(pollPlots, 2500);
+routeHash();

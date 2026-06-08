@@ -40,22 +40,24 @@ PEOPLE = {
 }
 
 # (date, court, partner, your self-rating, [opponents])
+# Story: you click with Maya (boost) and struggle with Leo (drag); Daniel is a
+# consistently tough matchup (drag) while you handle Tess well (favorable).
 SESSIONS = [
-    ("2026-03-07", SMB, "Maya",   8, ["Daniel", "Kai"]),
-    ("2026-03-12", LJS, "Maya",   9, ["Tess", "Marcus"]),
-    ("2026-03-15", WVC, "Sofia",  8, ["Kai", "Tess"]),
-    ("2026-03-20", SMB, "Leo",    4, ["Daniel", "Marcus"]),
-    ("2026-03-26", DMD, "Jordan", 7, ["Tess", "Kai"]),
-    ("2026-04-02", OB,  "Maya",   8, ["Marcus", "Tess"]),
-    ("2026-04-06", LJS, "Sofia",  7, ["Daniel", "Kai"]),
-    ("2026-04-11", WVC, "Leo",    3, ["Daniel", "Marcus"]),
-    ("2026-04-15", DMD, "Jordan", 7, ["Tess", "Kai"]),
-    ("2026-04-20", SMB, "Sofia",  7, ["Marcus", "Kai"]),
-    ("2026-04-25", OB,  "Leo",    5, ["Daniel", "Kai"]),
-    ("2026-05-01", LJS, "Maya",   9, ["Marcus", "Tess"]),
-    ("2026-05-05", DMD, "Jordan", 6, ["Kai", "Marcus"]),
-    ("2026-05-10", WVC, "Sofia",  8, ["Tess", "Kai"]),
-    ("2026-05-15", OB,  "Leo",    4, ["Daniel", "Marcus"]),
+    ("2026-03-07", SMB, "Maya",   9, ["Tess", "Kai"]),
+    ("2026-03-12", DMD, "Leo",    4, ["Daniel", "Kai"]),
+    ("2026-03-15", OB,  "Sofia",  8, ["Tess", "Marcus"]),
+    ("2026-03-20", LJS, "Maya",   9, ["Tess", "Marcus"]),
+    ("2026-03-26", WVC, "Jordan", 6, ["Daniel", "Kai"]),
+    ("2026-04-02", OB,  "Maya",   8, ["Kai", "Tess"]),
+    ("2026-04-06", SMB, "Leo",    4, ["Daniel", "Marcus"]),
+    ("2026-04-11", DMD, "Sofia",  8, ["Tess", "Kai"]),
+    ("2026-04-15", LJS, "Jordan", 7, ["Kai", "Marcus"]),
+    ("2026-04-20", WVC, "Maya",   8, ["Marcus", "Kai"]),
+    ("2026-04-25", OB,  "Leo",    5, ["Daniel", "Marcus"]),
+    ("2026-05-01", SMB, "Sofia",  7, ["Tess", "Kai"]),
+    ("2026-05-05", DMD, "Leo",    3, ["Daniel", "Kai"]),
+    ("2026-05-10", LJS, "Jordan", 6, ["Daniel", "Marcus"]),
+    ("2026-05-15", WVC, "Sofia",  8, ["Tess", "Kai"]),
 ]
 
 
