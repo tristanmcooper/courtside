@@ -27,7 +27,7 @@
 \begin{document}
 
 \begin{abstract}
-Beach volleyball athletes experience large day-to-day performance variability that no single tool explains: wearables report overnight recovery without same-day context, weather services miss court-level microclimate (wind in particular), and mid-match self-report is impractical. We designed, built, and \emph{deployed} \textbf{Courtside}, a multi-modal sensing instrument that fuses six streams---a custom courtside environmental node (ESP32-S3 with a DHT11 air temperature/humidity sensor, an MLX90614 infrared sand-surface thermometer, and an electret-microphone wind/audio proxy), wearable recovery physiology (Apple Watch via automated HealthKit export and Oura Ring via API), wearable workout intensity (in-session and prior-load), coarse regional weather (Open-Meteo), per-session subjective/objective performance logging, and the \emph{spatial} and \emph{relational} context of each session (which court, and which partners and opponents). The node streams over the athlete's phone hotspot to a cloud backend (FastAPI + PostgreSQL on Render) and a mobile web app that runs live setup, session recording, evaluation entry, an interactive court map, and partner/opponent ``personas'' with statistically-guarded relationship signals. A four-stage factor-ranking analysis (correlation $\rightarrow$ sparse linear selection $\rightarrow$ tree ensembles $\rightarrow$ SHAP) closes the loop. We validate the instrument end-to-end on a single-athlete pilot---including a 20-respondent player survey that shaped the feature set and a live beach day capturing sand-surface temperatures near 40\,$^\circ$C against $\sim$26\,$^\circ$C air, alongside synchronized Apple Watch recovery and in-session heart rate. We frame the contribution honestly: the value is the \emph{working instrument}, the user-needs study, and the gap it fills---not statistical claims, which the small real sample cannot support. Where analytics need scale, we demonstrate them on clearly-labeled sample data to show the output the instrument produces.
+Beach volleyball athletes experience large day-to-day performance variability that no single tool explains: wearables report overnight recovery without same-day context, weather services miss court-level microclimate (wind in particular), and mid-match self-report is impractical. We designed, built, and \emph{deployed} \textbf{Courtside}, a multi-modal sensing instrument that fuses six streams---a custom courtside environmental node (ESP32-S3 with a DHT11 air temperature/humidity sensor, an MLX90614 infrared sand-surface thermometer, and an electret-microphone wind/audio proxy), wearable recovery physiology (Apple Watch via automated HealthKit export and Oura Ring via API), wearable workout intensity (in-session and prior-load), coarse regional weather (Open-Meteo), per-session subjective/objective performance logging, and the \emph{spatial} and \emph{relational} context of each session (which court, and which partners and opponents). The node streams over the athlete's phone hotspot to a cloud backend (FastAPI + PostgreSQL on Render) and a mobile web app that runs live setup, session recording, evaluation entry, an interactive court map, and partner/opponent ``personas'' with statistically-guarded relationship signals. A four-stage factor-ranking analysis (correlation $\rightarrow$ sparse linear selection $\rightarrow$ tree ensembles $\rightarrow$ SHAP) closes the loop. We validate the instrument end-to-end on a single-athlete pilot---including a 20-respondent player survey that shaped the feature set and a live beach day capturing sand-surface temperatures near 40\,$^\circ$C against $\sim$26\,$^\circ$C air, alongside synchronized Apple Watch recovery and in-session heart rate. We frame the contribution honestly: the value is the \emph{working instrument}, the user-needs study, and the gap it fills---not statistical claims, which the small real sample ($N{=}2$ fully-instrumented sessions) cannot support. Where analytics need scale, we demonstrate them on clearly-labeled sample data \emph{built around those two real sessions} to show the output the instrument produces.
 \end{abstract}
 
 \maketitle
@@ -136,8 +136,8 @@ The electronics are housed in a custom 3D-printed enclosure designed in Fusion~3
 
 \begin{figure}[t]
     \centering
-    \includegraphics[width=0.6\columnwidth]{node_beach.jpg}\hfill
-    \includegraphics[width=0.37\columnwidth]{enclosure_cad.jpg}
+    \includegraphics[width=0.45\columnwidth]{node_beach.jpg}\hfill
+    \includegraphics[width=0.49\columnwidth]{enclosure_cad.jpg}
     \caption{Left: the node deployed courtside on sand, tripod-mounted and battery-powered. Right: the enclosure CAD (Fusion~360)---louvered air-sensor vent, open IR aperture, and tripod mount.}
     \label{fig:cad}
 \end{figure}
@@ -153,10 +153,10 @@ The app (vanilla JS, no build step, installable as a phone web app) is the instr
 
 \begin{figure*}[t]
     \centering
-    \includegraphics[width=0.30\textwidth]{app_live_record.png}\hfill
-    \includegraphics[width=0.30\textwidth]{app_live_recording.png}\hfill
-    \includegraphics[width=0.30\textwidth]{app_live_sessions.png}
-    \caption{The deployed app on the athlete's phone over 5G (\textbf{real pilot data}). Left: live setup view (``Live $\cdot$ 1s ago''), sand-surface readout and per-sensor plots. Center: an active recording with the elapsed timer. Right: the real session list---note the genuine beach sessions with sand-surface temperatures of 40.3--40.7\,$^\circ$C against $\sim$26\,$^\circ$C air, real partners, and value-colored self-ratings.}
+    \includegraphics[width=0.27\textwidth]{app_record.png}\hfill
+    \includegraphics[width=0.27\textwidth]{app_eval.png}\hfill
+    \includegraphics[width=0.27\textwidth]{app_sessions2.png}
+    \caption{The deployed app on the athlete's phone over 5G, with four tabs (Record, Sessions, Map, Summary). Left: the live setup view (``Live $\cdot$ 0s ago'') with balanced per-sensor cards and a ``Comfortable/Windy'' interpretation. Center: the post-session evaluation form, including the survey-driven player-state sliders (energy, soreness, mental, warm-up). Right: the session list---the June entries are \textbf{real pilot sessions} (sand 40.3--40.7\,$^\circ$C against $\sim$26\,$^\circ$C air, workout-paired), interleaved with sample sessions used for demonstration.}
     \label{fig:applive}
 \end{figure*}
 
@@ -168,8 +168,8 @@ Because the app already captures geolocation, sessions are grouped by court and 
 
 \begin{figure}[t]
     \centering
-    \includegraphics[width=0.62\columnwidth]{app_map.png}
-    \caption{The Map view: every court the athlete has logged, with markers colored by average rating and a ranked court list. Shown populated with \textbf{sample data} to demonstrate the feature at scale; the pilot's real courts also appear here.}
+    \includegraphics[width=0.6\columnwidth]{app_map2.png}
+    \caption{The Map view with a court tapped open: session count, average rating, and who the athlete has played with there, over markers colored by average rating. Populated mostly with \textbf{sample data} to demonstrate the feature; the pilot's real courts appear here too.}
     \label{fig:map}
 \end{figure}
 
@@ -178,13 +178,14 @@ Beach volleyball is a 2v2 game and, candidly, a deeply relational and emotional 
 
 Crucially, the app surfaces \emph{relationship signals} as notifications (Fig.~\ref{fig:rel}, left). For each person with enough sessions, it compares the athlete's ratings with versus without that person using a Welch's $t$-test (implemented in pure Python so the web service stays dependency-light), and flags notable, small-$N$-guarded effects: ``you play your best with Maya,'' or ``tough matchup against Daniel.'' This operationalizes the intuition every athlete has---``of course I played badly, I was up against the best player there''---into an explicit, evidence-weighted prompt. As with the pipeline, these analytics are shown on labeled sample data because the real pairing history is not yet large enough for inference.
 
-\begin{figure}[t]
+\begin{figure*}[t]
     \centering
-    \includegraphics[width=0.49\columnwidth]{app_signals.png}\hfill
-    \includegraphics[width=0.49\columnwidth]{app_person.png}
-    \caption{Relational analytics (\textbf{sample data}). Left: relationship signals comparing ratings with/without each person (Welch's $t$, small-$N$ guarded)---partner boosts and opponent ``tough matchup'' drags. Right: a person view with as-partner/as-opponent averages, a self-rated vs.\ estimated skill, and full head-to-head history.}
+    \includegraphics[width=0.27\textwidth]{app_signals2.png}\hfill
+    \includegraphics[width=0.27\textwidth]{app_people.png}\hfill
+    \includegraphics[width=0.27\textwidth]{app_person2.png}
+    \caption{Relational analytics (\textbf{sample data}; the pilot has only $N{=}2$ fully-instrumented real sessions, so these views are demonstrations built around the pilot's data). Left: relationship signals comparing the athlete's ratings with/without each person (Welch's $t$, small-$N$ guarded)---partner boosts and the ``tough matchup'' opponent drags. Center: partners and opponents ranked, each with a self-rated and a results-estimated skill. Right: a person view (a partner here) with as-partner/as-opponent averages and full history.}
     \label{fig:rel}
-\end{figure}
+\end{figure*}
 
 %===================================================================
 \section{Design Decisions and Development History}
@@ -264,15 +265,22 @@ Each channel was validated for responsiveness (Fig.~\ref{fig:bench}): exhaling o
 \end{figure}
 
 \subsection{Live Courtside Pilot}
-The full wireless path was exercised on the beach (Fig.~\ref{fig:teaser}, Fig.~\ref{fig:applive}): the node ran from a USB battery, joined the phone hotspot, and streamed to the cloud while the athlete used the live dashboard to position the tripod. On instrumented beach days we recorded real sessions with sand-surface temperatures of \textbf{40.3--40.7\,$^\circ$C} against $\sim$26\,$^\circ$C air---directly demonstrating the court-level microclimate that weather data cannot capture---tagged with real partners (e.g., a session at South Mission Beach) and real ratings. Apple Watch recovery for the same windows arrived automatically (HRV, resting HR, sleep), and Volleyball workouts were ingested with in-session heart rate (average 140--172\,bpm, peak up to $\sim$186\,bpm) and active energy (160--459\,kcal). The build step assembled a $\sim$40-column multi-modal feature row per session, confirming end-to-end fusion.
+The full wireless path was exercised on the beach (Fig.~\ref{fig:teaser}, Fig.~\ref{fig:applive}): the node ran from a USB battery, joined the phone hotspot, and streamed to the cloud while the athlete used the live dashboard to position the tripod. On instrumented beach days we recorded real sessions with sand-surface temperatures of \textbf{40.3--40.7\,$^\circ$C} against $\sim$26\,$^\circ$C air---directly demonstrating the court-level microclimate that weather data cannot capture---tagged with real partners (e.g., a session at South Mission Beach) and real ratings. Apple Watch recovery for the same windows arrived automatically (HRV, resting HR, sleep), and Volleyball workouts were ingested with in-session heart rate (average 140--172\,bpm, peak up to $\sim$186\,bpm) and active energy (160--459\,kcal); Figure~\ref{fig:recovery} shows this real wearable data populated live in the app. The build step assembled a $\sim$40-column multi-modal feature row per session, confirming end-to-end fusion. In total, the pilot produced \textbf{two fully-instrumented sessions} carrying every stream simultaneously---enough to prove the fusion end-to-end, but not enough for inferential ranking.
+
+\begin{figure}[t]
+    \centering
+    \includegraphics[width=0.58\columnwidth]{app_recovery.png}
+    \caption{The Summary recovery panel with \textbf{real} pilot wearable data: HRV (SDNN), resting HR, sleep, the in-session heart rate from a timestamp-paired Volleyball workout (avg 172, max 186\,bpm), and active energy---flowing automatically from the Apple Watch into the deployed app.}
+    \label{fig:recovery}
+\end{figure}
 
 \subsection{Pipeline Demonstration (Sample Data)}
-Because the number of \emph{fully-instrumented} real sessions is currently too small for interpretable ranking---only two sessions to date carry every stream simultaneously, and a correlation over a handful of points can exceed 0.8 by chance---we ran the unmodified pipeline on a clearly-labeled sample dataset of 16 sessions with a planted plausible structure (better sleep/HRV and cooler, calmer conditions $\rightarrow$ higher rating). The pipeline recovers that structure (Fig.~\ref{fig:sim}): HRV correlates positively ($r\approx0.67$) and sand-surface temperature negatively ($r\approx-0.36$) with the rating, and the leave-one-session-out stability column flags which factors are robust. This demonstrates \emph{what the instrument produces at scale}, not a finding.
+Because the number of \emph{fully-instrumented} real sessions is currently too small for interpretable ranking---\textbf{only $N{=}2$ sessions to date carry every stream simultaneously}, and a correlation over a handful of points can exceed 0.8 by chance---we ran the unmodified pipeline on a clearly-labeled sample dataset of 16 sessions \emph{built around those two real sessions}: it matches their observed value ranges (e.g.\ $\sim$40\,$^\circ$C sand and the measured heart-rate and sleep ranges) and adds a planted plausible structure (better sleep/HRV and cooler, calmer conditions $\rightarrow$ higher rating). The pipeline recovers that structure (Fig.~\ref{fig:sim}): HRV correlates positively ($r\approx0.67$) and sand-surface temperature negatively ($r\approx-0.36$) with the rating, and the leave-one-session-out stability column flags which factors are robust. This demonstrates \emph{what the instrument produces at scale}, not a finding.
 
 \begin{figure}[t]
     \centering
     \includegraphics[width=0.97\columnwidth]{factor_rankings_sim.png}
-    \caption{Pipeline factor-ranking \emph{output} on a labeled \textbf{sample} 16-session dataset (not real data). Demonstrates the end-to-end analysis and its self-reported stability. Real-data ranking awaits sufficient $N$.}
+    \caption{Pipeline factor-ranking \emph{output} on a labeled \textbf{sample} 16-session dataset built around the pilot's $N{=}2$ real sessions (not real results). Demonstrates the end-to-end analysis and its self-reported stability; real-data ranking awaits sufficient $N$.}
     \label{fig:sim}
 \end{figure}
 
@@ -281,7 +289,7 @@ The instrument also produces targeted, personally-actionable relationship views 
 \begin{figure}[t]
     \centering
     \includegraphics[width=0.99\columnwidth]{demo_relationships.png}
-    \caption{Relationship views the instrument produces from paired streams (\textbf{sample data}): actual effort (watch in-session HR, timestamp-matched to the node session) vs.\ self-rated performance (left), and sleep vs.\ performance (right). Shown to illustrate the analysis; not a real-data finding.}
+    \caption{Relationship views the instrument produces from paired streams (\textbf{sample data} built around the pilot's $N{=}2$ real sessions): actual effort (watch in-session HR, timestamp-matched to the node session) vs.\ self-rated performance (left), and sleep vs.\ performance (right). Shown to illustrate the analysis; not a real-data finding.}
     \label{fig:demorel}
 \end{figure}
 
@@ -304,7 +312,7 @@ The instrument also produces targeted, personally-actionable relationship views 
 %===================================================================
 \section{Conclusion}
 %===================================================================
-We delivered a working, deployed multi-modal instrument and analysis pipeline that fuses court-level environmental sensing, wearable recovery and in-session intensity, regional weather, spatial (court) and relational (partner/opponent) context, and subjective performance for an individual beach volleyball athlete---grounded in a 20-player needs survey and validated end-to-end on a live beach pilot. The main takeaway: the integration is real and the court microclimate it captures is genuinely invisible to existing tools; the honest gap is sample size, and because the instrument now collects all streams at near-zero marginal effort, the remaining work---reaching enough sessions and re-running the already-built ranking---is straightforward. We present sample-data output to show what the system produces at scale, and we make no statistical claims on the small real sample.
+We delivered a working, deployed multi-modal instrument and analysis pipeline that fuses court-level environmental sensing, wearable recovery and in-session intensity, regional weather, spatial (court) and relational (partner/opponent) context, and subjective performance for an individual beach volleyball athlete---grounded in a 20-player needs survey and validated end-to-end on a live beach pilot. The main takeaway: the integration is real and the court microclimate it captures is genuinely invisible to existing tools; the honest gap is sample size, and because the instrument now collects all streams at near-zero marginal effort, the remaining work---reaching enough sessions and re-running the already-built ranking---is straightforward. We present sample-data output (built around the pilot's $N{=}2$ real sessions) to show what the system produces at scale, and we make no statistical claims on the small real sample.
 
 \section*{AI Use Disclosure}
 AI tools (Claude) were used as a pair-programming and drafting assistant for the firmware, backend, and web-app code, for editing this report's prose, and to summarize open-ended survey responses. All system design, hardware integration, data-collection methodology, analysis choices, and the underlying data are the author's own. No AI tools were used during oral assessments.
