@@ -297,6 +297,7 @@ async function loadSummary() {
       tv.textContent = dir === 'up' ? 'Improving ↑' : dir === 'down' ? 'Declining ↓' : 'Steady →';
     } else { tc.className = 'card trend flat'; tv.textContent = 'Need ≥2 sessions'; }
     drawHist(hist);
+    loadRecovery();
     // insights from sessions (sensors + rating)
     insights();
     const ul = $('summaryList');
@@ -309,6 +310,23 @@ async function loadSummary() {
     });
   } catch (e) { /* ignore */ }
 }
+async function loadRecovery() {
+  const cell = (k, o, u = '') => o
+    ? `<div class="r"><div class="k">${k}</div><div class="v">${o.value}${u}</div><div class="s">${o.source} · ${fmtDate(o.day)}</div></div>`
+    : `<div class="r"><div class="k">${k}</div><div class="v">–</div><div class="s">no data yet</div></div>`;
+  try {
+    const r = await (await fetch('/api/recovery')).json();
+    let html = cell('HRV (SDNN)', r.hrv, ' ms') + cell('Resting HR', r.resting_hr) + cell('Sleep', r.sleep_hours, ' h');
+    const w = r.last_workout;
+    if (w) {
+      html += `<div class="r"><div class="k">In-session HR</div><div class="v">${w.avg_hr ? Math.round(w.avg_hr) : '–'}</div><div class="s">${w.name || 'workout'} · max ${w.max_hr ? Math.round(w.max_hr) : '–'}</div></div>`;
+      html += `<div class="r"><div class="k">Active energy</div><div class="v">${w.active_energy ? Math.round(w.active_energy) : '–'}</div><div class="s">kcal · ${w.duration_min ? Math.round(w.duration_min) : '–'} min</div></div>`;
+    }
+    html += cell('Resp. rate', r.respiratory_rate);
+    $('recGrid').innerHTML = html;
+  } catch (e) { $('recGrid').innerHTML = '<div class="r"><div class="k">Recovery</div><div class="v">–</div><div class="s">unavailable</div></div>'; }
+}
+
 async function insights() {
   const box = $('insights'); box.innerHTML = '';
   try {

@@ -175,6 +175,12 @@ h2.eyebrow { font-size: 12px; color: var(--muted); text-transform: uppercase; le
 .insight .ic { color: var(--aqua); font-size: 18px; margin-top: 1px; }
 .insight p { margin: 0; font-size: 13.5px; line-height: 1.45; color: var(--text); }
 #histChart { width: 100%; height: 170px; margin-top: 10px; display: block; }
+
+.rec-grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 9px; margin-top: 10px; }
+.rec-grid .r { background: rgba(0,0,0,0.22); border: 1px solid var(--border-2); border-radius: 12px; padding: 11px 12px; }
+.rec-grid .r .k { font-size: 10.5px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.5px; }
+.rec-grid .r .v { font-size: 20px; font-weight: 700; margin-top: 3px; font-variant-numeric: tabular-nums; }
+.rec-grid .r .s { font-size: 10.5px; color: var(--muted-2); margin-top: 1px; }
 .legend { display: flex; gap: 14px; margin-top: 8px; font-size: 11.5px; color: var(--muted); }
 .legend i { width: 9px; height: 9px; border-radius: 2px; display: inline-block; margin-right: 5px; vertical-align: middle; }
 

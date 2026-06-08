@@ -422,6 +422,30 @@ def summary():
 
 
 # ------------------------------------------------------------------- export API
+@app.get("/api/recovery")
+def recovery():
+    """Latest available wearable recovery values (for the dashboard's Recovery card)."""
+    db = SessionLocal()
+    try:
+        rows = db.execute(select(HealthDaily).order_by(desc(HealthDaily.day))).scalars().all()
+        def last(attr):
+            for r in rows:
+                v = getattr(r, attr)
+                if v is not None:
+                    return {"value": round(v, 1), "day": r.day.isoformat(), "source": r.source}
+            return None
+        wk = db.execute(select(Workout).order_by(desc(Workout.start_ts)).limit(1)).scalar_one_or_none()
+        return {
+            "hrv": last("hrv_sdnn"), "resting_hr": last("resting_hr"),
+            "sleep_hours": last("sleep_hours"), "respiratory_rate": last("respiratory_rate"),
+            "last_workout": ({"name": wk.name, "avg_hr": wk.avg_hr, "max_hr": wk.max_hr,
+                              "active_energy": wk.active_energy, "duration_min": wk.duration_min,
+                              "day": wk.start_ts.date().isoformat() if wk.start_ts else None} if wk else None),
+        }
+    finally:
+        db.close()
+
+
 @app.get("/api/export")
 def export_all():
     """Full dump for the offline analysis pipeline (build_features.py)."""
