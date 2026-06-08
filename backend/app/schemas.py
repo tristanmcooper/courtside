@@ -47,5 +47,6 @@ class SessionIn(BaseModel):
 
 class PersonIn(BaseModel):
     name: Optional[str] = None
-    kind: Optional[str] = None      # partner|opponent|both
+    kind: Optional[str] = None         # partner|opponent|both
+    ability_self: Optional[int] = None  # your 1-10 read on their skill
     notes: Optional[str] = None

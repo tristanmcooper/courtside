@@ -10,7 +10,7 @@
     integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="">
   <script defer src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
     integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
-  <link rel="stylesheet" href="/static/style.css?v=9">
+  <link rel="stylesheet" href="/static/style.css?v=10">
 </head>
 <body>
 <div class="app">
@@ -173,10 +173,10 @@
     <div class="card" id="relCard" style="margin-top:12px;">
       <div class="row-between">
         <div class="card-label"><span class="ic" data-icon="summary"></span>Performance relationships</div>
-        <span class="tag aqua" title="Trend line is from simulated illustrative data">illustrative</span>
+        <span class="rel-sample" title="Trend uses sample data; your logged sessions overlay as solid markers">sample data</span>
       </div>
-      <p class="rel-note">Expected patterns the system looks for, drawn from simulated data. Your
-        real sessions appear as solid markers and fill these in as you log more.</p>
+      <p class="rel-note">Patterns the system surfaces between your body, effort, and play. Your
+        logged sessions appear as solid markers and fill these in as you record more.</p>
       <div class="rel-grid">
         <div class="rel">
           <div class="rel-h"><span>Sleep → performance</span><span class="rel-r" id="r_sleep">—</span></div>
@@ -194,7 +194,7 @@
           <div class="rel-x">Active energy burned (kcal) → self rating (0–10)</div>
         </div>
       </div>
-      <div class="rel-legend"><span><i class="sim"></i>simulated trend</span><span><i class="real"></i>your sessions</span></div>
+      <div class="rel-legend"><span><i class="sim"></i>sample trend</span><span><i class="real"></i>your sessions</span></div>
     </div>
 
     <div class="card" id="peopleCard" style="margin-top:12px;">
@@ -215,11 +215,9 @@
       </div>
       <p class="mi-foot">The offline pipeline ranks these against the outcome via correlation →
         Lasso (LOOCV) → random-forest / gradient-boosting → SHAP. At small N, treat rankings as
-        exploratory, not confirmatory.</p>
+        exploratory, not confirmatory. Relationship trends above use sample data to demonstrate the
+        analysis; ranked results in the report use logged sessions only.</p>
     </details>
-
-    <h2 class="eyebrow">History</h2>
-    <ul id="summaryList" class="sessions"></ul>
   </section>
 
 </div>
@@ -227,6 +225,6 @@
 <div id="personOverlay" class="overlay" style="display:none"></div>
 <datalist id="peopleDL"></datalist>
 
-<script src="/static/app.js?v=9"></script>
+<script src="/static/app.js?v=10"></script>
 </body>
 </html>

@@ -693,10 +693,35 @@ def _ratings_for_person(db, person_id, role):
     return out
 
 
-def _person_summary(db, p) -> dict:
+def _overall_avg(db):
+    rs = [s.subjective_rating_1_10 for s in db.execute(select(SessionModel)).scalars().all()
+          if s.subjective_rating_1_10 is not None]
+    return sum(rs) / len(rs) if rs else None
+
+
+def _estimated_ability(ap, ao, overall):
+    """Estimate a person's skill from how your rating moves with/against them:
+    a strong partner lifts your game; a strong opponent drags it down."""
+    if overall is None:
+        return None
+    parts = []
+    if ap:
+        parts.append((len(ap), 5.5 + (sum(ap) / len(ap) - overall)))
+    if ao:
+        parts.append((len(ao), 5.5 + (overall - sum(ao) / len(ao))))
+    if not parts:
+        return None
+    est = sum(w * v for w, v in parts) / sum(w for w, _ in parts)
+    return round(max(1.0, min(10.0, est)), 1)
+
+
+def _person_summary(db, p, overall=None) -> dict:
     ap = _ratings_for_person(db, p.id, "partner")
     ao = _ratings_for_person(db, p.id, "opponent")
+    if overall is None:
+        overall = _overall_avg(db)
     return {"id": p.id, "name": p.name, "kind": p.kind, "color": p.color, "notes": p.notes,
+            "ability_self": p.ability_self, "ability_est": _estimated_ability(ap, ao, overall),
             "n_partner": len(ap), "avg_partner": round(sum(ap) / len(ap), 2) if ap else None,
             "n_opponent": len(ao), "avg_opponent": round(sum(ao) / len(ao), 2) if ao else None}
 
@@ -705,8 +730,9 @@ def _person_summary(db, p) -> dict:
 def list_people():
     db = SessionLocal()
     try:
+        overall = _overall_avg(db)
         people = db.execute(select(Person).order_by(Person.name)).scalars().all()
-        return [_person_summary(db, p) for p in people]
+        return [_person_summary(db, p, overall) for p in people]
     finally:
         db.close()
 
@@ -720,6 +746,8 @@ def create_person(p: PersonIn):
         person = _get_or_create_person(db, p.name, p.kind or "both")
         if p.kind:
             person.kind = p.kind
+        if p.ability_self is not None:
+            person.ability_self = p.ability_self
         if p.notes is not None:
             person.notes = p.notes
         db.commit()
@@ -762,6 +790,8 @@ def patch_person(pid: str, p: PersonIn):
             person.name = p.name.strip()
         if p.kind:
             person.kind = p.kind
+        if p.ability_self is not None:
+            person.ability_self = p.ability_self
         if p.notes is not None:
             person.notes = p.notes
         db.commit()

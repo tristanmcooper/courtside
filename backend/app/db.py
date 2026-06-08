@@ -102,6 +102,7 @@ class Person(Base):
     name: Mapped[str] = mapped_column(String(128))
     kind: Mapped[str] = mapped_column(String(16), default="both")        # partner|opponent|both
     color: Mapped[Optional[str]] = mapped_column(String(16))             # avatar/marker color
+    ability_self: Mapped[Optional[int]] = mapped_column(Integer)         # your 1-10 read on their skill
     notes: Mapped[Optional[str]] = mapped_column(Text)
     created_at: Mapped[Optional[datetime]] = mapped_column(DateTime)
 

@@ -339,14 +339,6 @@ async function loadSummary() {
     loadRecovery();
     // insights from sessions (sensors + rating)
     insights();
-    const ul = $('summaryList');
-    ul.innerHTML = hist.length ? '' : '<li class="empty">No rated sessions yet.</li>';
-    hist.slice().reverse().forEach(h => {
-      const li = document.createElement('li'); li.className = 'scard'; li.style.cursor = 'default';
-      const extra = [h.peer != null ? `peer ${h.peer}` : '', h.coach != null ? `coach ${h.coach}` : ''].filter(Boolean).join(' · ') || '—';
-      li.innerHTML = `<div><div class="s-date">${fmtDate(h.day)}</div><div class="s-meta">${extra}</div></div><span class="badge ${ratingClass(h.rating)}">${h.rating}/10</span>`;
-      ul.appendChild(li);
-    });
   } catch (e) { /* ignore */ }
 }
 async function loadRecovery() {
@@ -470,7 +462,7 @@ async function loadRelationships() {
   const realPts = (xk) => real.filter(p => p[xk] != null && p.rating != null).map(p => ({ x: p[xk], y: p.rating }));
   const setR = (id, r, n) => {
     const el = $(id); if (!el) return;
-    el.textContent = (r == null ? '—' : `demo r=${r >= 0 ? '+' : ''}${r.toFixed(2)}`) + (n ? ` · ${n} real` : '');
+    el.textContent = (r == null ? '—' : `r=${r >= 0 ? '+' : ''}${r.toFixed(2)}`) + (n ? ` · ${n} logged` : '');
   };
   const rs = realPts('sleep_hours'), re = realPts('insession_hr_avg'), rc = realPts('active_energy');
   setR('r_sleep', drawScatter('sc_sleep', SIM.sleep, rs, '#9db8ff'), rs.length);
@@ -541,8 +533,10 @@ async function loadPeople() {
   const row = (p, role) => {
     const avg = role === 'partner' ? p.avg_partner : p.avg_opponent;
     const n = role === 'partner' ? p.n_partner : p.n_opponent;
+    const abil = (p.ability_self != null || p.ability_est != null)
+      ? `<span class="pabil" title="their skill — your rating vs estimated from results">skill ${p.ability_self ?? '–'}<span class="est">est ${p.ability_est ?? '–'}</span></span>` : '';
     return `<div class="prow" data-person="${esc(p.id)}"><span class="pav" style="background:${p.color || '#67e8d1'}">${esc((p.name || '?')[0])}</span>
-      <span class="pname">${esc(p.name)}</span><span class="pmeta">${n} ${role === 'partner' ? 'with' : 'vs'} · <b>${avg ?? '–'}</b>/10</span></div>`;
+      <span class="pname">${esc(p.name)}${abil}</span><span class="pmeta">${n} ${role === 'partner' ? 'with' : 'vs'} · <b>${avg ?? '–'}</b>/10</span></div>`;
   };
   body.innerHTML =
     (partners.length ? `<div class="psub">Best partners</div>${partners.map(p => row(p, 'partner')).join('')}` : '') +
@@ -580,12 +574,27 @@ async function showPerson(pid) {
       <div class="tile"><div class="card-label">As partner</div><div class="tile-val">${d.avg_partner ?? '–'}<span class="sub">${d.n_partner} sess</span></div></div>
       <div class="tile"><div class="card-label">As opponent</div><div class="tile-val">${d.avg_opponent ?? '–'}<span class="sub">${d.n_opponent} sess</span></div></div>
     </div>
+    <div class="abil-edit">
+      <div class="abil-row"><span class="card-label" style="margin:0">Their skill</span>
+        <span class="abil-est">est <b>${d.ability_est ?? '–'}</b>/10 <span class="abil-hint">from your results</span></span></div>
+      <input type="range" id="abilRange" min="1" max="10" step="1" value="${d.ability_self ?? 5}">
+      <div class="abil-scale">your call: <b id="abilVal">${d.ability_self ?? '—'}</b>/10</div>
+    </div>
     <div class="section-title"><span class="ic">${ICONS.sessions}</span>History</div>
     <ul class="sessions">${hist.map(line).join('') || '<li class="empty">No sessions yet.</li>'}</ul>
   </div>`;
   ov.style.display = 'flex';
   $('pClose').onclick = () => { ov.style.display = 'none'; };
   ov.onclick = (e) => { if (e.target === ov) ov.style.display = 'none'; };
+  const ar = document.getElementById('abilRange');
+  if (ar) {
+    const av = document.getElementById('abilVal');
+    ar.addEventListener('input', () => { av.textContent = ar.value; });
+    ar.addEventListener('change', async () => {
+      await fetch(`/api/people/${encodeURIComponent(pid)}`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ ability_self: Number(ar.value) }) });
+      loadPeople();
+    });
+  }
 }
 document.addEventListener('click', e => {
   const el = e.target.closest('[data-person]');
