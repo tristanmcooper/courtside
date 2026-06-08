@@ -6,7 +6,11 @@
   <title>Courtside</title>
   <link rel="preconnect" href="https://rsms.me/">
   <link rel="stylesheet" href="https://rsms.me/inter/inter.css">
-  <link rel="stylesheet" href="/static/style.css?v=8">
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+    integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="">
+  <script defer src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
+    integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+  <link rel="stylesheet" href="/static/style.css?v=9">
 </head>
 <body>
 <div class="app">
@@ -22,6 +26,7 @@
   <div class="tabs">
     <button class="tab active" data-tab="record"><span class="ic" data-icon="record"></span>Record</button>
     <button class="tab" data-tab="sessions"><span class="ic" data-icon="sessions"></span>Sessions</button>
+    <button class="tab" data-tab="map"><span class="ic" data-icon="location"></span>Map</button>
     <button class="tab" data-tab="summary"><span class="ic" data-icon="summary"></span>Summary</button>
   </div>
 
@@ -105,9 +110,10 @@
 
       <div class="section-title"><span class="ic" data-icon="notes"></span>Context</div>
       <div class="grid2">
-        <label class="fld">Partner <input type="text" name="partner"></label>
-        <label class="fld">Opponent <input type="text" name="opponent_level"></label>
+        <label class="fld">Partner <input type="text" name="partner" list="peopleDL" autocomplete="off" placeholder="name"></label>
+        <label class="fld">Opponents <input type="text" name="opponents" list="peopleDL" autocomplete="off" placeholder="comma-separated"></label>
       </div>
+      <div class="hint" style="margin:-4px 0 4px">Names become reusable people — track who you play with &amp; against over time.</div>
       <label class="fld">Court / location <input type="text" name="location" placeholder="e.g. La Jolla Shores"></label>
       <button type="button" id="geoBtn" class="ghost"><span class="ic" data-icon="location"></span> Use my location</button>
       <div id="geoStatus" class="geomsg"></div>
@@ -126,6 +132,17 @@
     <div id="detail" class="card" style="display:none;"></div>
   </section>
 
+  <!-- ============================ MAP ============================ -->
+  <section id="map" class="panel">
+    <h2 class="eyebrow" style="margin-top:2px">Where you play</h2>
+    <div id="mapView"></div>
+    <div id="mapEmpty" class="empty-card" style="display:none">
+      No located sessions yet. Tap <b>Use my location</b> when you log a session and your
+      courts will appear here.
+    </div>
+    <div id="courtList" class="court-list"></div>
+  </section>
+
   <!-- ============================ SUMMARY ============================ -->
   <section id="summary" class="panel">
     <div class="tiles">
@@ -133,6 +150,7 @@
       <div class="tile"><div class="card-label">Avg self</div><div class="tile-val" id="s_avg">–</div></div>
       <div class="tile"><div class="card-label">Best</div><div class="tile-val" id="s_best">–</div></div>
     </div>
+    <div id="alerts"></div>
     <div class="card" id="recoveryCard" style="margin-top:12px;">
       <div class="card-label"><span class="ic" data-icon="air"></span>Recovery &amp; load (wearable)</div>
       <div class="rec-grid" id="recGrid"></div>
@@ -179,6 +197,11 @@
       <div class="rel-legend"><span><i class="sim"></i>simulated trend</span><span><i class="real"></i>your sessions</span></div>
     </div>
 
+    <div class="card" id="peopleCard" style="margin-top:12px;">
+      <div class="card-label"><span class="ic" data-icon="people"></span>Partners &amp; opponents</div>
+      <div id="peopleBody"></div>
+    </div>
+
     <details class="metrics-info card">
       <summary><span class="ic" data-icon="notes"></span>What metrics feed these insights?</summary>
       <div class="mi-body">
@@ -200,6 +223,10 @@
   </section>
 
 </div>
-<script src="/static/app.js?v=8"></script>
+
+<div id="personOverlay" class="overlay" style="display:none"></div>
+<datalist id="peopleDL"></datalist>
+
+<script src="/static/app.js?v=9"></script>
 </body>
 </html>

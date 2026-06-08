@@ -196,6 +196,66 @@ h2.eyebrow { font-size: 12px; color: var(--muted); text-transform: uppercase; le
 .det-paired { color: var(--aqua); font-weight: 600; display: inline-flex; align-items: center; gap: 4px; }
 .det-paired svg { width: 1em; height: 1em; stroke: currentColor; fill: none; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; vertical-align: -2px; }
 
+/* 4-tab fit */
+.tab { gap: 5px; font-size: 13px; padding: 9px 4px; white-space: nowrap; }
+.tab .ic { font-size: 15px; }
+
+/* ---------------- map tab ---------------- */
+#mapView { height: 300px; border-radius: 14px; overflow: hidden; border: 1px solid var(--border);
+  background: var(--surface); z-index: 0; }
+.empty-card { background: var(--surface); border: 1px dashed var(--border); border-radius: 14px;
+  padding: 20px; color: var(--muted); font-size: 13px; line-height: 1.5; }
+.court-list { margin-top: 14px; display: flex; flex-direction: column; gap: 8px; }
+.court-card { display: flex; align-items: center; gap: 11px; padding: 12px 14px; cursor: pointer;
+  background: linear-gradient(160deg, var(--surface-2), var(--surface)); border: 1px solid var(--border);
+  border-radius: 13px; transition: var(--ease); }
+.court-card:active { transform: scale(0.99); }
+.cdot { width: 11px; height: 11px; border-radius: 50%; flex: none; }
+.cc-main { flex: 1; min-width: 0; }
+.cc-name { font-weight: 600; color: var(--text); font-size: 14px; }
+.cc-meta { font-size: 11.5px; color: var(--muted-2); margin-top: 1px; }
+.cpop b { font-size: 13.5px; }
+.cpop-row { font-size: 12px; color: #4a5568; margin-top: 3px; }
+
+/* ---------------- people / personas ---------------- */
+.psub { font-size: 11px; text-transform: uppercase; letter-spacing: 0.8px; color: var(--muted-2);
+  margin: 14px 0 6px; }
+.psub:first-child { margin-top: 4px; }
+.prow { display: flex; align-items: center; gap: 11px; padding: 8px 4px; cursor: pointer; border-radius: 10px; }
+.prow:active { background: rgba(255,255,255,0.04); }
+.pav { width: 30px; height: 30px; border-radius: 50%; flex: none; display: flex; align-items: center;
+  justify-content: center; font-weight: 700; font-size: 14px; color: #08121f; text-transform: uppercase; }
+.pav.sm { width: 20px; height: 20px; font-size: 10px; }
+.pav.lg { width: 46px; height: 46px; font-size: 20px; }
+.pname { flex: 1; font-weight: 600; color: var(--text); font-size: 14px; }
+.pmeta { font-size: 12px; color: var(--muted); font-variant-numeric: tabular-nums; }
+.muted-note { color: var(--muted-2); font-size: 12.5px; line-height: 1.5; margin: 4px 0 0; }
+.pchips { display: flex; flex-wrap: wrap; gap: 7px; margin: 2px 2px 10px; }
+.pchip { display: inline-flex; align-items: center; gap: 6px; padding: 3px 9px 3px 3px; cursor: pointer;
+  background: var(--surface); border: 1px solid var(--border); border-radius: 999px; font-size: 12.5px;
+  font-weight: 600; color: var(--text); }
+.prole { font-size: 10px; color: var(--muted-2); text-transform: uppercase; letter-spacing: 0.5px; }
+
+/* ---------------- relationship alerts ---------------- */
+.alert { display: flex; align-items: flex-start; gap: 10px; padding: 12px 14px; margin-top: 12px;
+  border-radius: 13px; cursor: pointer; border: 1px solid var(--border); }
+.alert p { margin: 0; font-size: 13px; line-height: 1.45; color: var(--text); }
+.alert .ic { font-size: 18px; margin-top: 1px; flex: none; }
+.alert.boost { background: rgba(90,209,154,0.10); border-color: rgba(90,209,154,0.30); }
+.alert.boost .ic { color: #5ad19a; }
+.alert.drag { background: rgba(252,165,165,0.10); border-color: rgba(252,165,165,0.30); }
+.alert.drag .ic { color: #fca5a5; }
+
+/* ---------------- person overlay ---------------- */
+.overlay { position: fixed; inset: 0; background: rgba(4,9,16,0.72); backdrop-filter: blur(4px);
+  z-index: 1000; display: flex; align-items: flex-start; justify-content: center; overflow-y: auto; padding: 24px 14px; }
+.overlay-card { width: 100%; max-width: 520px; background: linear-gradient(160deg, var(--surface-2), var(--surface));
+  border: 1px solid var(--border); border-radius: 18px; padding: 18px; box-shadow: var(--shadow); }
+.phead { display: flex; align-items: center; gap: 14px; }
+.overlay-card .tile-val { font-size: 22px; font-weight: 730; font-variant-numeric: tabular-nums; }
+.overlay-card .tile-val .sub { display: block; font-size: 11px; color: var(--muted-2); font-weight: 500; margin-top: 2px; }
+.overlay-card .section-title { margin-top: 18px; }
+
 /* performance relationship scatter plots */
 .row-between .tag { margin-top: 0; }
 .rel-note { margin: 8px 0 4px; font-size: 12px; line-height: 1.45; color: var(--muted); }

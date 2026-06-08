@@ -94,6 +94,27 @@ class Workout(Base):
     raw: Mapped[Optional[dict]] = mapped_column(JSON)             # full workout (lossless)
 
 
+class Person(Base):
+    """A real person you play with/against — partners and opponents as first-class
+    records so relationships accrue history (beach volleyball is a pairing sport)."""
+    __tablename__ = "people"
+    id: Mapped[str] = mapped_column(String(64), primary_key=True)        # slug of name
+    name: Mapped[str] = mapped_column(String(128))
+    kind: Mapped[str] = mapped_column(String(16), default="both")        # partner|opponent|both
+    color: Mapped[Optional[str]] = mapped_column(String(16))             # avatar/marker color
+    notes: Mapped[Optional[str]] = mapped_column(Text)
+    created_at: Mapped[Optional[datetime]] = mapped_column(DateTime)
+
+
+class SessionPerson(Base):
+    """Links a session to the people in it, with their role that session."""
+    __tablename__ = "session_people"
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    session_id: Mapped[str] = mapped_column(String(64), index=True)
+    person_id: Mapped[str] = mapped_column(String(64), index=True)
+    role: Mapped[str] = mapped_column(String(16))                        # partner|opponent
+
+
 def ensure_columns():
     """Lightweight auto-migration: ADD COLUMN for any model column missing from an
     existing table (create_all only creates missing *tables*). Postgres + SQLite."""

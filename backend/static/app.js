@@ -2,6 +2,7 @@
 const $ = (id) => document.getElementById(id);
 const clamp = (x, lo, hi) => Math.max(lo, Math.min(hi, x));
 const fmt = (v, d = 1) => (v == null || Number.isNaN(v)) ? '–' : Number(v).toFixed(d);
+const esc = (s) => String(s == null ? '' : s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
 
 // ---------- icons (Lucide-style) ----------
 const S = (p) => `<svg viewBox="0 0 24 24">${p}</svg>`;
@@ -21,6 +22,9 @@ const ICONS = {
   back: S('<path d="M19 12H5"/><path d="m12 19-7-7 7-7"/>'),
   bulb: S('<path d="M9 18h6M10 22h4"/><path d="M12 2a7 7 0 0 0-4 12c.6.6 1 1.5 1 3h6c0-1.5.4-2.4 1-3a7 7 0 0 0-4-12Z"/>'),
   workout: S('<path d="M22 12h-4l-3 9L9 3l-3 9H2"/>'),
+  people: S('<path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/>'),
+  up: S('<path d="M23 6l-9.5 9.5-5-5L1 18"/><path d="M17 6h6v6"/>'),
+  down: S('<path d="M23 18l-9.5-9.5-5 5L1 6"/><path d="M17 18h6v-6"/>'),
 };
 const drawIcons = (root = document) =>
   root.querySelectorAll('[data-icon]').forEach(e => { e.innerHTML = ICONS[e.dataset.icon] || ''; });
@@ -64,6 +68,7 @@ document.querySelectorAll('.tab').forEach(btn => {
     $(btn.dataset.tab).classList.add('active');
     if (btn.dataset.tab === 'sessions') loadSessions();
     if (btn.dataset.tab === 'summary') loadSummary();
+    if (btn.dataset.tab === 'map') loadMap();
   });
 });
 
@@ -198,6 +203,8 @@ ef.addEventListener('submit', async (e) => {
     if ((k === 'peer_rating_1_10' || k === 'coach_rating_1_10') && Number(v) === 0) continue;
     body[k] = INT_F.includes(k) ? parseInt(v, 10) : FLOAT_F.includes(k) ? parseFloat(v) : v;
   }
+  if (typeof body.opponents === 'string')
+    body.opponents = body.opponents.split(',').map(x => x.trim()).filter(Boolean);
   try {
     const r = await fetch(`/api/sessions/${ef.dataset.sid}`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
     if (!r.ok) throw new Error(await r.text());
@@ -240,7 +247,13 @@ async function loadSessions() {
 
 const PERF = [['subjective_rating_1_10', 'Self (0–10)'], ['peer_rating_1_10', 'Peer'], ['coach_rating_1_10', 'Coach'],
 ['kills', 'Kills'], ['errors', 'Errors'], ['sets_won', 'Sets won'], ['sets_lost', 'Sets lost']];
-const CTX = [['partner', 'Partner'], ['opponent_level', 'Opponent'], ['location', 'Location'], ['felt_state', 'Felt state']];
+const CTX = [['location', 'Location'], ['felt_state', 'Felt state']];
+const peopleChips = (p) => {
+  if (!p) return '';
+  const chip = (x, role) => `<span class="pchip" data-person="${esc(x.id)}"><span class="pav sm" style="background:${x.color || '#67e8d1'}">${esc((x.name || '?')[0])}</span>${esc(x.name)}<span class="prole">${role}</span></span>`;
+  const all = [...(p.partners || []).map(x => chip(x, 'partner')), ...(p.opponents || []).map(x => chip(x, 'vs'))];
+  return all.length ? `<div class="pchips">${all.join('')}</div>` : '';
+};
 const STATE = [['energy_1_5', 'Energy (1–5)'], ['soreness_1_5', 'Soreness (1–5)'], ['mental_1_5', 'Mental (1–5)'], ['warmup_1_5', 'Warm-up (1–5)']];
 const val = (d, k) => (d[k] != null ? d[k] : '');
 async function showDetail(sid) {
@@ -254,6 +267,7 @@ async function showDetail(sid) {
   el.innerHTML = `
     <button type="button" id="backBtn" class="btn secondary" style="margin-bottom:14px"><span class="ic">${ICONS.back}</span>Back to sessions</button>
     <h2 class="eyebrow" style="margin:0 2px 8px">${fmtDate(d.day)}${d.n_readings ? ` · ${d.n_readings} sensor samples` : ''}${d.has_workout ? ` · <span class="det-paired">${ICONS.workout} workout paired</span>` : ''}</h2>
+    ${peopleChips(d.people)}
     <div class="section-title" style="margin-top:6px"><span class="ic">${ICONS.sand}</span>Conditions</div>
     <div class="det-sensors">
       ${tile('Surface temp', s.sand_temp, '°')}${tile('Air', s.air_temp, '°')}
@@ -265,9 +279,12 @@ async function showDetail(sid) {
       <div class="section-title"><span class="ic">${ICONS.air}</span>Player state</div>
       <div class="grid2">${STATE.map(num).join('')}</div>
       <label class="fld">Food timing<input name="food_timing" type="text" value="${val(d, 'food_timing')}"></label>
+      <div class="section-title"><span class="ic">${ICONS.people}</span>People</div>
+      <label class="fld">Partner<input name="partner" list="peopleDL" autocomplete="off" value="${esc(val(d, 'partner'))}"></label>
+      <label class="fld">Opponents<input name="opponents" list="peopleDL" autocomplete="off" value="${esc((d.people && d.people.opponents || []).map(o => o.name).join(', '))}"></label>
       <div class="section-title"><span class="ic">${ICONS.notes}</span>Context</div>
       ${CTX.map(txt).join('')}
-      <label class="fld">Notes<textarea name="notes" rows="2">${val(d, 'notes')}</textarea></label>
+      <label class="fld">Notes<textarea name="notes" rows="2">${esc(val(d, 'notes'))}</textarea></label>
       <div class="btnrow">
         <button type="submit" class="btn primary"><span class="ic">${ICONS.save}</span>Save</button>
         <button type="button" id="delBtn" class="btn danger"><span class="ic">${ICONS.trash}</span>Delete</button>
@@ -281,6 +298,7 @@ async function showDetail(sid) {
     const body = {};
     for (const [k, v] of new FormData(e.target).entries())
       body[k] = v === '' ? null : (INT_F.includes(k) || FLOAT_F.includes(k) ? Number(v) : v);
+    body.opponents = body.opponents ? String(body.opponents).split(',').map(x => x.trim()).filter(Boolean) : [];
     const r = await fetch(`/api/sessions/${encodeURIComponent(sid)}`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
     $('editMsg').textContent = r.ok ? 'Saved ✓' : 'Error'; $('editMsg').className = 'formmsg ' + (r.ok ? 'ok' : 'err');
   });
@@ -316,6 +334,8 @@ async function loadSummary() {
     } else { tc.className = 'card trend flat'; tv.textContent = 'Need ≥2 sessions'; }
     drawHist(hist);
     loadRelationships();
+    loadAlerts();
+    loadPeople();
     loadRecovery();
     // insights from sessions (sensors + rating)
     insights();
@@ -458,8 +478,123 @@ async function loadRelationships() {
   setR('r_cal', drawScatter('sc_cal', SIM.cal, rc, '#67e8d1'), rc.length);
 }
 
+// ---------- map ----------
+let _map = null, _courtLayer = null;
+function courtPopup(c) {
+  const partners = c.partners.length ? c.partners.map(p => `${esc(p.name)} ×${p.n}`).join(', ') : '—';
+  return `<div class="cpop"><b>${esc(c.name)}</b>
+    <div class="cpop-row">${c.n} session${c.n > 1 ? 's' : ''} · avg <b>${c.avg_rating != null ? c.avg_rating + '/10' : '–'}</b></div>
+    ${c.avg_wind != null ? `<div class="cpop-row">avg wind proxy ${c.avg_wind}</div>` : ''}
+    ${c.avg_sand_temp != null ? `<div class="cpop-row">avg surface ${c.avg_sand_temp}°</div>` : ''}
+    <div class="cpop-row">Partners: ${partners}</div></div>`;
+}
+const ratingColor = (r) => r == null ? '#6f7c91' : r >= 7 ? '#5ad19a' : r >= 4 ? '#f6b26b' : '#fca5a5';
+function renderCourtList(courts) {
+  const box = $('courtList'); if (!box) return;
+  box.innerHTML = courts.map((c, i) => `<div class="court-card" data-court="${i}">
+    <span class="cdot" style="background:${ratingColor(c.avg_rating)}"></span>
+    <div class="cc-main"><div class="cc-name">${esc(c.name)}</div>
+      <div class="cc-meta">${c.n} session${c.n > 1 ? 's' : ''}${c.partners.length ? ' · ' + c.partners.slice(0, 2).map(p => esc(p.name)).join(', ') : ''}</div></div>
+    <span class="badge ${ratingClass(c.avg_rating)}">${c.avg_rating != null ? c.avg_rating + '/10' : '—'}</span></div>`).join('');
+}
+async function loadMap() {
+  const view = $('mapView'), empty = $('mapEmpty');
+  let courts = [];
+  try { courts = await (await fetch('/api/courts')).json(); } catch (e) { }
+  renderCourtList(courts);
+  if (!courts.length) { empty.style.display = 'block'; view.style.display = 'none'; return; }
+  empty.style.display = 'none'; view.style.display = 'block';
+  if (typeof L === 'undefined') { view.innerHTML = '<div class="empty-card">Map library still loading — reopen this tab in a moment.</div>'; return; }
+  if (!_map) {
+    _map = L.map(view, { scrollWheelZoom: false });
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',
+      { maxZoom: 19, attribution: '© OpenStreetMap' }).addTo(_map);
+  }
+  if (_courtLayer) _courtLayer.remove();
+  _courtLayer = L.layerGroup().addTo(_map);
+  const pts = [];
+  courts.forEach((c, i) => {
+    const m = L.circleMarker([c.lat, c.lon], { radius: 8 + Math.min(c.n, 8), color: '#0a1626', weight: 2, fillColor: ratingColor(c.avg_rating), fillOpacity: 0.85 });
+    m.bindPopup(courtPopup(c)); m.addTo(_courtLayer);
+    c._marker = m; pts.push([c.lat, c.lon]);
+  });
+  _courtList = courts;
+  _map.invalidateSize();
+  if (pts.length === 1) _map.setView(pts[0], 14); else _map.fitBounds(pts, { padding: [40, 40] });
+}
+let _courtList = [];
+document.addEventListener('click', e => {
+  const cc = e.target.closest('[data-court]');
+  if (cc && _map) { const c = _courtList[+cc.dataset.court]; if (c && c._marker) { _map.setView([c.lat, c.lon], 15); c._marker.openPopup(); window.scrollTo({ top: 0, behavior: 'smooth' }); } }
+});
+
+// ---------- people / relationships ----------
+async function loadPeople() {
+  let people = [];
+  try { people = await (await fetch('/api/people')).json(); } catch (e) { return; }
+  const dl = $('peopleDL');
+  if (dl) dl.innerHTML = people.map(p => `<option value="${esc(p.name)}">`).join('');
+  const body = $('peopleBody'); if (!body) return;
+  if (!people.length) { body.innerHTML = '<p class="muted-note">No people yet — add a partner or opponents when you log a session and they\'ll build a history here.</p>'; return; }
+  const partners = people.filter(p => p.n_partner > 0).sort((a, b) => (b.avg_partner ?? -1) - (a.avg_partner ?? -1));
+  const opps = people.filter(p => p.n_opponent > 0).sort((a, b) => (a.avg_opponent ?? 99) - (b.avg_opponent ?? 99));
+  const row = (p, role) => {
+    const avg = role === 'partner' ? p.avg_partner : p.avg_opponent;
+    const n = role === 'partner' ? p.n_partner : p.n_opponent;
+    return `<div class="prow" data-person="${esc(p.id)}"><span class="pav" style="background:${p.color || '#67e8d1'}">${esc((p.name || '?')[0])}</span>
+      <span class="pname">${esc(p.name)}</span><span class="pmeta">${n} ${role === 'partner' ? 'with' : 'vs'} · <b>${avg ?? '–'}</b>/10</span></div>`;
+  };
+  body.innerHTML =
+    (partners.length ? `<div class="psub">Best partners</div>${partners.map(p => row(p, 'partner')).join('')}` : '') +
+    (opps.length ? `<div class="psub">Toughest opponents</div>${opps.map(p => row(p, 'opponent')).join('')}` : '');
+}
+async function loadAlerts() {
+  const box = $('alerts'); if (!box) return; box.innerHTML = '';
+  let data = { alerts: [] };
+  try { data = await (await fetch('/api/relationships')).json(); } catch (e) { return; }
+  if (!data.alerts || !data.alerts.length) return;
+  box.innerHTML = data.alerts.map(a => {
+    const pStr = a.p < 0.001 ? 'p<0.001' : `p=${a.p}`;
+    const verb = a.role === 'partner'
+      ? (a.kind === 'boost' ? 'You play your best with' : 'Your rating dips playing with')
+      : (a.kind === 'drag' ? 'Tough matchup against' : 'You rate higher against');
+    const sign = a.diff > 0 ? '+' : '';
+    return `<div class="alert ${a.kind}" data-person="${esc(a.person_id)}">
+      <span class="ic">${a.kind === 'boost' ? ICONS.up : ICONS.down}</span>
+      <p><b>${verb} ${esc(a.person)}</b> — ${sign}${a.diff} vs your average (${a.n} sessions, ${pStr})</p></div>`;
+  }).join('');
+}
+async function showPerson(pid) {
+  const ov = $('personOverlay');
+  let d; try { d = await (await fetch(`/api/people/${encodeURIComponent(pid)}`)).json(); } catch (e) { return; }
+  if (!d || d.detail) return;
+  const hist = d.history || [];
+  const line = (h) => `<li class="scard" style="cursor:default"><div><div class="s-date">${fmtDate(h.day)}</div>
+    <div class="s-meta">${h.role === 'partner' ? 'as partner' : 'opponent'} · ${esc(h.location || '—')}</div></div>
+    <span class="badge ${ratingClass(h.rating)}">${h.rating != null ? h.rating + '/10' : '—'}</span></li>`;
+  ov.innerHTML = `<div class="overlay-card">
+    <button id="pClose" class="btn secondary" style="margin-bottom:14px"><span class="ic">${ICONS.back}</span>Close</button>
+    <div class="phead"><span class="pav lg" style="background:${d.color || '#67e8d1'}">${esc((d.name || '?')[0])}</span>
+      <div><h2 style="margin:0">${esc(d.name)}</h2><div class="muted-note">${esc(d.kind)}</div></div></div>
+    <div class="grid2" style="margin-top:14px">
+      <div class="tile"><div class="card-label">As partner</div><div class="tile-val">${d.avg_partner ?? '–'}<span class="sub">${d.n_partner} sess</span></div></div>
+      <div class="tile"><div class="card-label">As opponent</div><div class="tile-val">${d.avg_opponent ?? '–'}<span class="sub">${d.n_opponent} sess</span></div></div>
+    </div>
+    <div class="section-title"><span class="ic">${ICONS.sessions}</span>History</div>
+    <ul class="sessions">${hist.map(line).join('') || '<li class="empty">No sessions yet.</li>'}</ul>
+  </div>`;
+  ov.style.display = 'flex';
+  $('pClose').onclick = () => { ov.style.display = 'none'; };
+  ov.onclick = (e) => { if (e.target === ov) ov.style.display = 'none'; };
+}
+document.addEventListener('click', e => {
+  const el = e.target.closest('[data-person]');
+  if (el) showPerson(el.dataset.person);
+});
+
 // ---------- boot ----------
 drawIcons();
+loadPeople();
 if (localStorage.getItem('activeSessionId')) setRecordingUI(true);
 pollLive(); pollPlots();
 setInterval(pollLive, 1000);

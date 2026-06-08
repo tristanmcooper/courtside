@@ -1,5 +1,7 @@
 """Courtside backend: ingest sensor + wearable data, serve the live dashboard."""
 import os
+import re
+import math
 from datetime import datetime, date, timedelta, timezone
 from pathlib import Path
 from typing import Optional
@@ -10,8 +12,8 @@ from fastapi.staticfiles import StaticFiles
 from sqlalchemy import select, desc, func
 
 from .db import (Base, engine, SessionLocal, CourtReading, HealthDaily,
-                 Session as SessionModel, Workout, ensure_columns)
-from .schemas import CourtIn, SessionIn
+                 Session as SessionModel, Workout, Person, SessionPerson, ensure_columns)
+from .schemas import CourtIn, SessionIn, PersonIn
 
 # If NODE_KEY is set, /ingest/court requires a matching X-Node-Key header.
 # Left empty in local dev so curl/testing works without a key.
@@ -264,6 +266,125 @@ def _session_dict(s) -> dict:
     return {f: getattr(s, f) for f in ("session_id",) + _FIELDS}
 
 
+# ------------------------------------------------------------------ people / personas
+_PERSON_COLORS = ["#67e8d1", "#f6b26b", "#9db8ff", "#f4a4c0", "#a6e3a1",
+                  "#ffd29a", "#c4b5fd", "#7dd3fc", "#fca5a5", "#5ad19a"]
+
+
+def _slug(name: str) -> str:
+    s = re.sub(r"[^a-z0-9]+", "-", (name or "").strip().lower()).strip("-")
+    return s or "person"
+
+
+def _get_or_create_person(db, name: str, kind: str = "both"):
+    name = (name or "").strip()
+    if not name:
+        return None
+    pid = _slug(name)
+    p = db.get(Person, pid)
+    if p is None:
+        color = _PERSON_COLORS[sum(ord(c) for c in pid) % len(_PERSON_COLORS)]
+        p = Person(id=pid, name=name, kind=kind, color=color, created_at=utcnow())
+        db.add(p)
+    elif kind != "both" and p.kind not in (kind, "both"):
+        p.kind = "both"   # they've now been both a partner and an opponent
+    return p
+
+
+def _sync_session_people(db, sid: str, partner: Optional[str], opponents):
+    """Replace a session's people links from the submitted partner + opponents."""
+    if partner is None and opponents is None:
+        return
+    if partner is not None:
+        db.execute(SessionPerson.__table__.delete().where(
+            (SessionPerson.session_id == sid) & (SessionPerson.role == "partner")))
+        p = _get_or_create_person(db, partner, "partner")
+        if p:
+            db.add(SessionPerson(session_id=sid, person_id=p.id, role="partner"))
+    if opponents is not None:
+        db.execute(SessionPerson.__table__.delete().where(
+            (SessionPerson.session_id == sid) & (SessionPerson.role == "opponent")))
+        for nm in opponents:
+            p = _get_or_create_person(db, nm, "opponent")
+            if p:
+                db.add(SessionPerson(session_id=sid, person_id=p.id, role="opponent"))
+
+
+def _people_for_session(db, sid: str) -> dict:
+    rows = db.execute(select(SessionPerson).where(SessionPerson.session_id == sid)).scalars().all()
+    out = {"partners": [], "opponents": []}
+    for r in rows:
+        p = db.get(Person, r.person_id)
+        if not p:
+            continue
+        entry = {"id": p.id, "name": p.name, "color": p.color}
+        out["partners" if r.role == "partner" else "opponents"].append(entry)
+    return out
+
+
+# ---- small-N significance test (pure Python; no scipy on the web service) ----
+def _betacf(a, b, x):
+    MAXIT, EPS, FPMIN = 200, 3e-7, 1e-30
+    qab, qap, qam = a + b, a + 1, a - 1
+    c, d = 1.0, 1.0 - qab * x / qap
+    if abs(d) < FPMIN:
+        d = FPMIN
+    d = 1.0 / d
+    h = d
+    for m in range(1, MAXIT + 1):
+        m2 = 2 * m
+        aa = m * (b - m) * x / ((qam + m2) * (a + m2))
+        d = 1.0 + aa * d
+        if abs(d) < FPMIN:
+            d = FPMIN
+        c = 1.0 + aa / c
+        if abs(c) < FPMIN:
+            c = FPMIN
+        d = 1.0 / d
+        h *= d * c
+        aa = -(a + m) * (qab + m) * x / ((a + m2) * (qap + m2))
+        d = 1.0 + aa * d
+        if abs(d) < FPMIN:
+            d = FPMIN
+        c = 1.0 + aa / c
+        if abs(c) < FPMIN:
+            c = FPMIN
+        d = 1.0 / d
+        de = d * c
+        h *= de
+        if abs(de - 1.0) < EPS:
+            break
+    return h
+
+
+def _betai(a, b, x):
+    if x <= 0:
+        return 0.0
+    if x >= 1:
+        return 1.0
+    lbeta = math.lgamma(a + b) - math.lgamma(a) - math.lgamma(b)
+    bt = math.exp(lbeta + a * math.log(x) + b * math.log(1.0 - x))
+    return bt * _betacf(a, b, x) / a if x < (a + 1) / (a + b + 2) else 1.0 - bt * _betacf(b, a, 1.0 - x) / b
+
+
+def _welch_p(a, b):
+    """Two-sided Welch's t-test p-value for two small samples; None if degenerate."""
+    na, nb = len(a), len(b)
+    if na < 2 or nb < 2:
+        return None
+    ma, mb = sum(a) / na, sum(b) / nb
+    va = sum((x - ma) ** 2 for x in a) / (na - 1)
+    vb = sum((x - mb) ** 2 for x in b) / (nb - 1)
+    se2 = va / na + vb / nb
+    if se2 <= 0:
+        return None
+    t = (ma - mb) / math.sqrt(se2)
+    df = se2 ** 2 / ((va / na) ** 2 / (na - 1) + (vb / nb) ** 2 / (nb - 1))
+    if df <= 0:
+        return None
+    return _betai(df / 2.0, 0.5, df / (df + t * t))
+
+
 def _court_window(db, start, end):
     q = select(CourtReading).order_by(CourtReading.server_ts)
     if start is not None:
@@ -310,6 +431,7 @@ def stop_session(sid: str, s: SessionIn):
         row.end_ts = utcnow()
         row.status = "done"
         _apply(row, s)
+        _sync_session_people(db, sid, s.partner, s.opponents)
         db.commit()
         return {"ok": True, "session_id": sid}
     finally:
@@ -327,6 +449,8 @@ def create_session(s: SessionIn):
         row.day = day
         _apply(row, s)
         db.add(row)
+        db.flush()
+        _sync_session_people(db, sid, s.partner, s.opponents)
         db.commit()
         return {"ok": True, "session_id": sid}
     finally:
@@ -341,6 +465,7 @@ def patch_session(sid: str, s: SessionIn):
         if not row:
             raise HTTPException(404, "no such session")
         _apply(row, s)
+        _sync_session_people(db, sid, s.partner, s.opponents)
         db.commit()
         return {"ok": True, "session_id": sid}
     finally:
@@ -353,6 +478,7 @@ def delete_session(sid: str):
     try:
         row = db.get(SessionModel, sid)
         if row:
+            db.execute(SessionPerson.__table__.delete().where(SessionPerson.session_id == sid))
             db.delete(row)
             db.commit()
         return {"ok": True}
@@ -372,6 +498,7 @@ def list_sessions():
              "kills": r.kills, "errors": r.errors, "partner": r.partner,
              "location": r.location, "notes": r.notes,
              "has_workout": _has_workout(db, r.start_ts, r.end_ts),
+             "people": _people_for_session(db, r.session_id),
              "sensors": _aggregate(_court_window(db, r.start_ts, r.end_ts)) if r.start_ts else {}}
             for r in rows
         ]
@@ -391,6 +518,7 @@ def get_session(sid: str):
         d["sensors"] = _aggregate(readings)
         d["n_readings"] = len(readings)
         d["has_workout"] = _has_workout(db, row.start_ts, row.end_ts)
+        d["people"] = _people_for_session(db, sid)
         return d
     finally:
         db.close()
@@ -549,6 +677,190 @@ def export_all():
                 for w in workouts
             ],
         }
+    finally:
+        db.close()
+
+
+# ------------------------------------------------------------------- people API
+def _ratings_for_person(db, person_id, role):
+    sids = [sp.session_id for sp in db.execute(select(SessionPerson).where(
+        (SessionPerson.person_id == person_id) & (SessionPerson.role == role))).scalars().all()]
+    out = []
+    for sid in sids:
+        s = db.get(SessionModel, sid)
+        if s and s.subjective_rating_1_10 is not None:
+            out.append(s.subjective_rating_1_10)
+    return out
+
+
+def _person_summary(db, p) -> dict:
+    ap = _ratings_for_person(db, p.id, "partner")
+    ao = _ratings_for_person(db, p.id, "opponent")
+    return {"id": p.id, "name": p.name, "kind": p.kind, "color": p.color, "notes": p.notes,
+            "n_partner": len(ap), "avg_partner": round(sum(ap) / len(ap), 2) if ap else None,
+            "n_opponent": len(ao), "avg_opponent": round(sum(ao) / len(ao), 2) if ao else None}
+
+
+@app.get("/api/people")
+def list_people():
+    db = SessionLocal()
+    try:
+        people = db.execute(select(Person).order_by(Person.name)).scalars().all()
+        return [_person_summary(db, p) for p in people]
+    finally:
+        db.close()
+
+
+@app.post("/api/people")
+def create_person(p: PersonIn):
+    db = SessionLocal()
+    try:
+        if not (p.name or "").strip():
+            raise HTTPException(400, "name required")
+        person = _get_or_create_person(db, p.name, p.kind or "both")
+        if p.kind:
+            person.kind = p.kind
+        if p.notes is not None:
+            person.notes = p.notes
+        db.commit()
+        return {"ok": True, "id": person.id}
+    finally:
+        db.close()
+
+
+@app.get("/api/people/{pid}")
+def get_person(pid: str):
+    db = SessionLocal()
+    try:
+        p = db.get(Person, pid)
+        if not p:
+            raise HTTPException(404, "no such person")
+        sps = db.execute(select(SessionPerson).where(SessionPerson.person_id == pid)).scalars().all()
+        hist = []
+        for sp in sps:
+            s = db.get(SessionModel, sp.session_id)
+            if not s:
+                continue
+            hist.append({"session_id": s.session_id, "day": s.day.isoformat(), "role": sp.role,
+                         "rating": s.subjective_rating_1_10, "location": s.location})
+        hist.sort(key=lambda h: h["day"], reverse=True)
+        d = _person_summary(db, p)
+        d["history"] = hist
+        return d
+    finally:
+        db.close()
+
+
+@app.patch("/api/people/{pid}")
+def patch_person(pid: str, p: PersonIn):
+    db = SessionLocal()
+    try:
+        person = db.get(Person, pid)
+        if not person:
+            raise HTTPException(404, "no such person")
+        if p.name and p.name.strip():
+            person.name = p.name.strip()
+        if p.kind:
+            person.kind = p.kind
+        if p.notes is not None:
+            person.notes = p.notes
+        db.commit()
+        return {"ok": True}
+    finally:
+        db.close()
+
+
+@app.delete("/api/people/{pid}")
+def delete_person(pid: str):
+    db = SessionLocal()
+    try:
+        db.execute(SessionPerson.__table__.delete().where(SessionPerson.person_id == pid))
+        person = db.get(Person, pid)
+        if person:
+            db.delete(person)
+        db.commit()
+        return {"ok": True}
+    finally:
+        db.close()
+
+
+# -------------------------------------------------------------------- map / courts
+@app.get("/api/courts")
+def courts():
+    """Sessions grouped by court (location name, else rounded coords) for the Map tab."""
+    db = SessionLocal()
+    try:
+        sessions = db.execute(select(SessionModel)).scalars().all()
+        groups: dict[str, dict] = {}
+        for s in sessions:
+            if s.lat is None or s.lon is None:
+                continue
+            key = (s.location or "").strip().lower() or f"{round(s.lat, 3)},{round(s.lon, 3)}"
+            g = groups.setdefault(key, {"name": s.location or "Unnamed court", "lats": [], "lons": [],
+                                        "ratings": [], "winds": [], "sands": [], "sessions": []})
+            g["lats"].append(s.lat)
+            g["lons"].append(s.lon)
+            if s.subjective_rating_1_10 is not None:
+                g["ratings"].append(s.subjective_rating_1_10)
+            agg = _aggregate(_court_window(db, s.start_ts, s.end_ts)) if s.start_ts else {}
+            if agg.get("wind_sound"):
+                g["winds"].append(agg["wind_sound"]["mean"])
+            if agg.get("sand_temp"):
+                g["sands"].append(agg["sand_temp"]["mean"])
+            g["sessions"].append(s.session_id)
+        avg = lambda L: round(sum(L) / len(L), 1) if L else None
+        out = []
+        for g in groups.values():
+            pc: dict[str, int] = {}
+            for sid in g["sessions"]:
+                for sp in db.execute(select(SessionPerson).where(
+                        (SessionPerson.session_id == sid) & (SessionPerson.role == "partner"))).scalars().all():
+                    pe = db.get(Person, sp.person_id)
+                    if pe:
+                        pc[pe.name] = pc.get(pe.name, 0) + 1
+            out.append({"name": g["name"],
+                        "lat": sum(g["lats"]) / len(g["lats"]), "lon": sum(g["lons"]) / len(g["lons"]),
+                        "n": len(g["sessions"]), "avg_rating": avg(g["ratings"]),
+                        "avg_wind": avg(g["winds"]), "avg_sand_temp": avg(g["sands"]),
+                        "partners": [{"name": k, "n": v} for k, v in sorted(pc.items(), key=lambda x: -x[1])]})
+        out.sort(key=lambda c: -c["n"])
+        return out
+    finally:
+        db.close()
+
+
+# --------------------------------------------------------- relationship signals
+@app.get("/api/relationships")
+def relationships():
+    """Flag partners/opponents your ratings move with — Welch's t, small-N guarded."""
+    db = SessionLocal()
+    try:
+        rated = [s for s in db.execute(select(SessionModel)).scalars().all()
+                 if s.subjective_rating_1_10 is not None]
+        by_sid = {s.session_id: s.subjective_rating_1_10 for s in rated}
+        alerts = []
+        MIN_N = 3
+        for p in db.execute(select(Person)).scalars().all():
+            for role in ("partner", "opponent"):
+                sids = {sp.session_id for sp in db.execute(select(SessionPerson).where(
+                    (SessionPerson.person_id == p.id) & (SessionPerson.role == role))).scalars().all()}
+                with_ = [by_sid[s] for s in sids if s in by_sid]
+                without = [r for sid, r in by_sid.items() if sid not in sids]
+                if len(with_) < MIN_N or len(without) < 2:
+                    continue
+                mw, mo = sum(with_) / len(with_), sum(without) / len(without)
+                diff = mw - mo
+                if abs(diff) < 0.8:
+                    continue
+                pval = _welch_p(with_, without)
+                if pval is None or pval >= 0.1:
+                    continue
+                alerts.append({"person": p.name, "person_id": p.id, "role": role,
+                               "kind": "boost" if diff > 0 else "drag", "n": len(with_),
+                               "mean_with": round(mw, 1), "mean_other": round(mo, 1),
+                               "diff": round(diff, 1), "p": round(pval, 3)})
+        alerts.sort(key=lambda a: a["p"])
+        return {"alerts": alerts, "n_rated": len(rated)}
     finally:
         db.close()
 

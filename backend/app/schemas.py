@@ -1,6 +1,6 @@
 """Pydantic request bodies."""
 from datetime import datetime, date
-from typing import Optional
+from typing import Optional, List
 
 from pydantic import BaseModel
 
@@ -24,8 +24,9 @@ class SessionIn(BaseModel):
     location: Optional[str] = None
     lat: Optional[float] = None
     lon: Optional[float] = None
-    partner: Optional[str] = None
-    opponent_level: Optional[str] = None
+    partner: Optional[str] = None          # partner name (links/creates a Person)
+    opponents: Optional[List[str]] = None  # opponent names (link/create People)
+    opponent_level: Optional[str] = None   # legacy free-text skill descriptor
     subjective_rating_1_10: Optional[float] = None
     peer_rating_1_10: Optional[float] = None
     coach_rating_1_10: Optional[float] = None
@@ -42,3 +43,9 @@ class SessionIn(BaseModel):
     sets_lost: Optional[int] = None
     notes: Optional[str] = None
     status: Optional[str] = None
+
+
+class PersonIn(BaseModel):
+    name: Optional[str] = None
+    kind: Optional[str] = None      # partner|opponent|both
+    notes: Optional[str] = None
