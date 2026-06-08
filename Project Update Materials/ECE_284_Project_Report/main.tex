@@ -171,6 +171,15 @@ Because real $N$ is currently too small for interpretable ranking (a four-point 
     \label{fig:sim}
 \end{figure}
 
+The instrument also supports targeted, personally-actionable relationship views (Fig.~\ref{fig:rel}). Pairing each Apple Watch workout to its ESP32 session window by \emph{timestamp overlap} yields \emph{actual effort} (in-session heart rate) alongside \emph{reported performance}; overnight \emph{sleep} can likewise be plotted against performance. On the simulated data, sleep tracks self-rated performance strongly ($r\approx0.83$) while raw physical effort does not ($r\approx0.27$)---exactly the kind of contrast the tool is designed to surface, and a reminder that more effort is not more performance.
+
+\begin{figure}[t]
+    \centering
+    \includegraphics[width=0.99\columnwidth]{demo_relationships.png}
+    \caption{Illustrative (\textbf{simulated}) relationship views the instrument produces from paired streams: actual effort (watch in-session HR, timestamp-matched to the ESP32 session) vs.\ self-rated performance (left), and sleep vs.\ performance (right). Shown to illustrate the analysis; not a real-data finding.}
+    \label{fig:rel}
+\end{figure}
+
 %===================================================================
 \section{Discussion}
 \label{sec:discussion}
