@@ -40,7 +40,9 @@ DEFAULT_IN = ROOT / "features" / "session_features.csv"
 CANDIDATES = [
     "sand_temp_mean", "sand_temp_max", "env_temp_mean", "env_temp_max",
     "humidity_mean", "ir_ambient_mean", "wind_sound_mean", "wind_sound_p95",
-    "hrv_sdnn", "resting_hr", "sleep_hours",
+    "hrv_sdnn", "resting_hr", "sleep_hours", "respiratory_rate",
+    "oura_hrv", "oura_resting_hr", "oura_sleep_hours", "oura_readiness",
+    "insession_hr_avg", "insession_hr_max", "insession_energy", "load_7d_energy",
     "weather_wind_ms", "weather_gust_ms", "weather_temp_c", "weather_humidity_pct",
     "wind_self_report",
 ]

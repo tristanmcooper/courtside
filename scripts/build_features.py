@@ -119,6 +119,29 @@ def main():
     except Exception as e:
         print(f"  oura merge skipped: {e}")
 
+    # workouts: in-session intensity (overlapping the session window) + prior-7-day load
+    wk = pd.DataFrame(data.get("workouts", []))
+    if not wk.empty and "start_ts" in wk:
+        wk["wstart"] = pd.to_datetime(wk["start_ts"])
+        wk["wend"] = pd.to_datetime(wk["end_ts"])
+        cols = {"insession_hr_avg": [], "insession_hr_max": [], "insession_energy": [],
+                "load_7d_count": [], "load_7d_energy": []}
+        for _, s in sessions.iterrows():
+            if pd.notna(s.get("start_ts")) and pd.notna(s.get("end_ts")):
+                st, en = pd.to_datetime(s["start_ts"]), pd.to_datetime(s["end_ts"])
+                ov = wk[(wk["wstart"] <= en) & (wk["wend"] >= st)]
+                prior = wk[(wk["wstart"] < st) & (wk["wstart"] >= st - pd.Timedelta(days=7))]
+                cols["insession_hr_avg"].append(ov["avg_hr"].mean() if len(ov) else np.nan)
+                cols["insession_hr_max"].append(ov["max_hr"].max() if len(ov) else np.nan)
+                cols["insession_energy"].append(ov["active_energy"].sum() if len(ov) else np.nan)
+                cols["load_7d_count"].append(len(prior))
+                cols["load_7d_energy"].append(prior["active_energy"].sum() if len(prior) else np.nan)
+            else:
+                for k in cols:
+                    cols[k].append(np.nan)
+        for k, v in cols.items():
+            sessions[k] = v
+
     # regional weather (Open-Meteo) per session lat/lon, at ~mid-afternoon local
     wcols = ["weather_wind_ms", "weather_gust_ms", "weather_temp_c", "weather_humidity_pct"]
     wrows = []

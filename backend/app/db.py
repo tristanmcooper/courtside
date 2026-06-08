@@ -73,6 +73,22 @@ class Session(Base):
     status: Mapped[str] = mapped_column(String(16), default="done")  # "recording" | "done"
 
 
+class Workout(Base):
+    """Apple Watch workouts (in-session intensity + cross-training load)."""
+    __tablename__ = "workouts"
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    name: Mapped[Optional[str]] = mapped_column(String(64))      # e.g. "Volleyball", "Running"
+    start_ts: Mapped[Optional[datetime]] = mapped_column(DateTime, index=True)
+    end_ts: Mapped[Optional[datetime]] = mapped_column(DateTime)
+    duration_min: Mapped[Optional[float]] = mapped_column(Float)
+    active_energy: Mapped[Optional[float]] = mapped_column(Float)  # kcal
+    avg_hr: Mapped[Optional[float]] = mapped_column(Float)
+    max_hr: Mapped[Optional[float]] = mapped_column(Float)
+    distance_m: Mapped[Optional[float]] = mapped_column(Float)
+    source: Mapped[str] = mapped_column(String(32), default="apple")
+    raw: Mapped[Optional[dict]] = mapped_column(JSON)             # full workout (lossless)
+
+
 def ensure_columns():
     """Lightweight auto-migration: ADD COLUMN for any model column missing from an
     existing table (create_all only creates missing *tables*). Postgres + SQLite."""

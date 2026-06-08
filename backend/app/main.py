@@ -10,7 +10,7 @@ from fastapi.staticfiles import StaticFiles
 from sqlalchemy import select, desc, func
 
 from .db import (Base, engine, SessionLocal, CourtReading, HealthDaily,
-                 Session as SessionModel, ensure_columns)
+                 Session as SessionModel, Workout, ensure_columns)
 from .schemas import CourtIn, SessionIn
 
 # If NODE_KEY is set, /ingest/court requires a matching X-Node-Key header.
@@ -88,6 +88,45 @@ def _num(point: dict, *keys):
     return None
 
 
+def _wq(obj):
+    """HAE values may be a number or a {'qty': .., 'units': ..} object."""
+    if isinstance(obj, dict):
+        return obj.get("qty") if isinstance(obj.get("qty"), (int, float)) else None
+    return obj if isinstance(obj, (int, float)) else None
+
+
+def _wts(s):
+    """Parse a HAE timestamp like '2026-06-04 14:00:00 -0700' to naive UTC."""
+    if not s:
+        return None
+    try:
+        from datetime import datetime as _dt
+        d = _dt.strptime(str(s).strip(), "%Y-%m-%d %H:%M:%S %z")
+        return d.astimezone(timezone.utc).replace(tzinfo=None)
+    except Exception:
+        try:
+            return datetime.fromisoformat(str(s)[:19])
+        except Exception:
+            return None
+
+
+def parse_workout(w: dict) -> dict:
+    """Defensive extraction across HAE versions; full object kept in raw."""
+    hr_list = w.get("heartRateData") or w.get("heartRate") or []
+    hrs = [_wq(p) for p in hr_list if isinstance(p, dict)] if isinstance(hr_list, list) else []
+    hrs = [h for h in hrs if h is not None]
+    return {
+        "name": w.get("name") or w.get("workoutActivityType") or w.get("type"),
+        "start_ts": _wts(w.get("start") or w.get("startDate")),
+        "end_ts": _wts(w.get("end") or w.get("endDate")),
+        "duration_min": (_wq(w.get("duration")) or 0) / 60.0 if _wq(w.get("duration")) else None,
+        "active_energy": _wq(w.get("activeEnergyBurned") or w.get("activeEnergy")),
+        "avg_hr": _wq(w.get("avgHeartRate") or w.get("averageHeartRate")) or (sum(hrs) / len(hrs) if hrs else None),
+        "max_hr": _wq(w.get("maxHeartRate")) or (max(hrs) if hrs else None),
+        "distance_m": _wq(w.get("distance") or w.get("totalDistance")),
+    }
+
+
 @app.post("/ingest/health")
 def ingest_health(payload: dict = Body(...)):
     metrics = (payload.get("data") or payload).get("metrics", [])
@@ -138,10 +177,31 @@ def ingest_health(payload: dict = Body(...)):
                 setattr(existing, k, v)
             existing.raw = raw
             written += 1
+
+        # workouts (Data Type = Workouts posts to this same endpoint)
+        workouts = (payload.get("data") or payload).get("workouts", []) or []
+        w_written = 0
+        for w in workouts:
+            f = parse_workout(w)
+            if f["start_ts"] is None:
+                continue
+            existing = db.execute(
+                select(Workout).where(Workout.start_ts == f["start_ts"])
+            ).scalar_one_or_none()
+            if existing is None:
+                existing = Workout(start_ts=f["start_ts"], source="apple")
+                db.add(existing)
+            for k, v in f.items():
+                if v is not None:
+                    setattr(existing, k, v)
+            existing.raw = w
+            w_written += 1
+
         db.commit()
     finally:
         db.close()
-    return {"ok": True, "days_written": written, "metrics_seen": sorted(seen)}
+    return {"ok": True, "days_written": written, "workouts_written": w_written,
+            "metrics_seen": sorted(seen)}
 
 
 # ------------------------------------------------------------------- read APIs
@@ -370,6 +430,7 @@ def export_all():
         courts = db.execute(select(CourtReading).order_by(CourtReading.server_ts)).scalars().all()
         sessions = db.execute(select(SessionModel).order_by(SessionModel.day)).scalars().all()
         health = db.execute(select(HealthDaily).order_by(HealthDaily.day)).scalars().all()
+        workouts = db.execute(select(Workout).order_by(Workout.start_ts)).scalars().all()
         return {
             "court_readings": [_reading_dict(r) for r in courts],
             "sessions": [
@@ -381,6 +442,14 @@ def export_all():
                  "resting_hr": h.resting_hr, "sleep_hours": h.sleep_hours,
                  "respiratory_rate": h.respiratory_rate, "raw": h.raw}
                 for h in health
+            ],
+            "workouts": [
+                {"name": w.name,
+                 "start_ts": w.start_ts.isoformat() if w.start_ts else None,
+                 "end_ts": w.end_ts.isoformat() if w.end_ts else None,
+                 "duration_min": w.duration_min, "active_energy": w.active_energy,
+                 "avg_hr": w.avg_hr, "max_hr": w.max_hr, "distance_m": w.distance_m}
+                for w in workouts
             ],
         }
     finally:
@@ -394,3 +463,199 @@ app.mount("/static", StaticFiles(directory=str(STATIC_DIR)), name="static")
 @app.get("/")
 def index():
     return FileResponse(str(STATIC_DIR / "index.html"))
+
+
+
+
+# ##/*
+# # yes build the workout. should i first find a workout to send so you know the format? also why is there a main thing that shows sand surface temp but then theres another that shows sand IR? seems redundant? also why is only sand surface have a thing? makes it look like sand is the whole point. i'm not saying it looks bad but just wondering. also are we pulling from weather api too? shouldn't there be that too? or is that too much infomration. maybe we should partition based on sensor readings and weather api readings idk? should there be a physical summary or no is that too much and outside of our scope. also courside font for the title is too basic. maybe generate a png and put it there so it looks more professional? if you need me to do it i can.# Courtside UI Concept Correction
+
+
+
+# The app is not a sand-temperature dashboard. It is a multi-modal beach volleyball session logger that combines:
+
+
+
+# 1. subjective performance outcome
+
+# 2. courtside environmental sensor data
+
+# 3. wearable recovery/physiology data
+
+# 4. contextual player/session notes
+
+# 5. factor-ranking analysis
+
+
+
+# Primary product promise:
+
+# "What factors likely explained today's performance?"
+
+
+
+# ## Main UI hierarchy
+
+# Prioritize:
+
+# 1. session rating / outcome
+
+# 2. wind + recovery + mental/physical state
+
+# 3. environmental sensor readings
+
+# 4. wearable context
+
+# 5. trend/factor-ranking insights
+
+
+
+# Do not visually center the whole app around sand temperature.
+
+
+
+# ## Record screen
+
+# Hero should be "Session Capture" or "Court Conditions", not "Sand Surface".
+
+
+
+# Use balanced sensor cards:
+
+# - Surface Temp
+
+# - Air Temp
+
+# - Humidity
+
+# - Wind Proxy
+
+
+
+# Remove duplicated "Sand Surface" + "Sand IR".
+
+# Use "Surface Temp" as user-facing label.
+
+# Keep "IR Sensor" only in debug/details.
+
+
+
+# ## Add Player State section
+
+# Include lightweight subjective inputs:
+
+# - Energy
+
+# - Soreness
+
+# - Mental state
+
+# - Food timing
+
+# - Warm-up quality
+
+# - Notes
+
+
+
+# This is in-scope because player survey feedback emphasized recovery, tiredness, mental state, food, soreness, and warm-up quality.
+
+
+
+# Keep it low-burden.
+
+
+
+# ## Add Wearable Context section
+
+# Show Oura/Apple Watch data when available:
+
+# - Sleep score
+
+# - Readiness score
+
+# - Activity score
+
+# - HR data if Apple Watch HealthKit export exists
+
+
+
+# Do not fake live wearable syncing. Label source clearly.
+
+
+
+# ## Weather API
+
+# Weather API is secondary context only.
+
+
+
+# Separate:
+
+# - On-court sensor readings
+
+# - Local weather context
+
+
+
+# Weather can include:
+
+# - UV
+
+# - forecast wind
+
+# - general condition
+
+# - outdoor temp
+
+
+
+# Do not mix weather API values with local sensor readings.
+
+
+
+# ## Insights screen
+
+# Focus on factor ranking:
+
+# - Best session
+
+# - Average self rating
+
+# - Trend
+
+# - Top likely factors
+
+# - Rating vs wind
+
+# - Rating vs recovery
+
+# - Rating vs surface temp
+
+# - Rating vs sleep/readiness
+
+
+
+# Avoid overclaiming with small N.
+
+# Use language like:
+
+# "Possible factor"
+
+# "Associated with"
+
+# "Not enough sessions yet"
+
+
+
+# ## Final product feel
+
+# Premium Oura-style interface, but for beach volleyball performance.
+
+
+
+# The UI should answer:
+
+# "How did I play, what were the conditions, how was my body, and what probably mattered?"
+# # 
+# # */
