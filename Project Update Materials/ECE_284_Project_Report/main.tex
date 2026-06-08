@@ -55,15 +55,13 @@ Athletes know some days they play well and others they do not; isolating \emph{w
 
 Courtside is fully built and deployed (Fig.~\ref{fig:arch}); it is not a mockup. Components:
 
-\textbf{Courtside node.} An ESP32-S3 reads a \textbf{DHT11} (air temperature/humidity), an \textbf{MLX90614} non-contact IR thermometer (sand-surface temperature), and an analog electret microphone (peak-to-peak amplitude as a low-cost wind/audio proxy) at 1~Hz. Firmware connects to the athlete's iPhone Personal Hotspot and \texttt{POST}s each reading as JSON to the backend, with a serial CSV fallback. (The proposal specified a BME280; the delivered unit uses a DHT11---lower precision, no barometric pressure---a substitution discussed in \S\ref{sec:limits}.)
+\textbf{Courtside node} (Fig.~\ref{fig:node}). An ESP32-S3 reads a \textbf{DHT11} (air temperature/humidity), an \textbf{MLX90614} non-contact IR thermometer (sand-surface temperature), and an analog electret microphone (peak-to-peak amplitude as a low-cost wind/audio proxy) at 1~Hz. Firmware connects to the athlete's iPhone Personal Hotspot and \texttt{POST}s each reading as JSON to the backend, with a serial CSV fallback. (The proposal specified a BME280; the delivered unit uses a DHT11---lower precision, no barometric pressure---a substitution discussed in \S\ref{sec:limits}.)
 
 \begin{figure}[t]
     \centering
-    % TODO: replace hardware_photo.jpg with today's node/enclosure photo (drop the
-    % file in this folder; e.g. \includegraphics{node_today.jpg}). Add a second
-    % \includegraphics of an app screenshot if desired.
-    \includegraphics[width=0.78\columnwidth]{hardware_photo.jpg}
-    \caption{The assembled courtside node (ESP32-S3 + DHT11 + MLX90614 IR + electret mic), tripod-mounted and powered from a USB battery for untethered courtside operation.}
+    \includegraphics[width=0.62\columnwidth]{node_beach.jpg}\hfill
+    \includegraphics[width=0.36\columnwidth]{enclosure_cad.jpg}
+    \caption{Left: the assembled node deployed courtside---ESP32-S3 + DHT11 + MLX90614 IR + electret mic in a 3D-printed enclosure, tripod-mounted on sand and powered from a USB battery for untethered operation. Right: the enclosure CAD (Fusion~360), showing the louvered vent for the air sensor, the open IR aperture aimed at the sand, and a 1/4-20 tripod mount.}
     \label{fig:node}
 \end{figure}
 
