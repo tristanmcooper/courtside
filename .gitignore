@@ -31,3 +31,11 @@ firmware/.pio/
 
 # generated feature tables / rankings (personal data)
 features/
+
+# LaTeX build artifacts
+*.aux
+*.log
+*.fls
+*.fdb_latexmk
+*.synctex.gz
+*.out
