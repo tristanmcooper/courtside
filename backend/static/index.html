@@ -6,7 +6,7 @@
   <title>Courtside</title>
   <link rel="preconnect" href="https://rsms.me/">
   <link rel="stylesheet" href="https://rsms.me/inter/inter.css">
-  <link rel="stylesheet" href="/static/style.css?v=7">
+  <link rel="stylesheet" href="/static/style.css?v=8">
 </head>
 <body>
 <div class="app">
@@ -151,11 +151,55 @@
         <span><i style="background:#5ad19a"></i>Coach</span>
       </div>
     </div>
+
+    <div class="card" id="relCard" style="margin-top:12px;">
+      <div class="row-between">
+        <div class="card-label"><span class="ic" data-icon="summary"></span>Performance relationships</div>
+        <span class="tag aqua" title="Trend line is from simulated illustrative data">illustrative</span>
+      </div>
+      <p class="rel-note">Expected patterns the system looks for, drawn from simulated data. Your
+        real sessions appear as solid markers and fill these in as you log more.</p>
+      <div class="rel-grid">
+        <div class="rel">
+          <div class="rel-h"><span>Sleep → performance</span><span class="rel-r" id="r_sleep">—</span></div>
+          <canvas id="sc_sleep" class="scatter"></canvas>
+          <div class="rel-x">Sleep last night (h) → self rating (0–10)</div>
+        </div>
+        <div class="rel">
+          <div class="rel-h"><span>Effort → performance</span><span class="rel-r" id="r_effort">—</span></div>
+          <canvas id="sc_effort" class="scatter"></canvas>
+          <div class="rel-x">In-session avg HR (bpm) → self rating (0–10)</div>
+        </div>
+        <div class="rel">
+          <div class="rel-h"><span>Workload → performance</span><span class="rel-r" id="r_cal">—</span></div>
+          <canvas id="sc_cal" class="scatter"></canvas>
+          <div class="rel-x">Active energy burned (kcal) → self rating (0–10)</div>
+        </div>
+      </div>
+      <div class="rel-legend"><span><i class="sim"></i>simulated trend</span><span><i class="real"></i>your sessions</span></div>
+    </div>
+
+    <details class="metrics-info card">
+      <summary><span class="ic" data-icon="notes"></span>What metrics feed these insights?</summary>
+      <div class="mi-body">
+        <div class="mi-group"><b>Court node · ESP32</b><span>surface (IR sand) temp, air temp, humidity, wind &amp; audio proxy</span></div>
+        <div class="mi-group"><b>Recovery · Apple Watch / Oura</b><span>HRV (SDNN / RMSSD), resting HR, sleep duration, respiratory rate</span></div>
+        <div class="mi-group"><b>Workout · Apple Watch</b><span>in-session avg &amp; max HR, active energy (kcal), duration, prior 7-day load</span></div>
+        <div class="mi-group"><b>Weather · Open-Meteo</b><span>wind speed &amp; gusts, temperature, humidity (independent of the node)</span></div>
+        <div class="mi-group"><b>Player state · self-report</b><span>energy, soreness, mental, warm-up (1–5), food timing</span></div>
+        <div class="mi-group"><b>Context · self-report</b><span>partner, opponent, location, felt wind, felt state, notes</span></div>
+        <div class="mi-group"><b>Outcome modeled</b><span>self rating (0–10); also peer/coach rating, kills − errors</span></div>
+      </div>
+      <p class="mi-foot">The offline pipeline ranks these against the outcome via correlation →
+        Lasso (LOOCV) → random-forest / gradient-boosting → SHAP. At small N, treat rankings as
+        exploratory, not confirmatory.</p>
+    </details>
+
     <h2 class="eyebrow">History</h2>
     <ul id="summaryList" class="sessions"></ul>
   </section>
 
 </div>
-<script src="/static/app.js?v=7"></script>
+<script src="/static/app.js?v=8"></script>
 </body>
 </html>

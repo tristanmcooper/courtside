@@ -436,6 +436,65 @@ def summary():
 
 
 # ------------------------------------------------------------------- export API
+def _health_for_day(db, day):
+    """Wearable recovery values recorded on a session's calendar day (any source)."""
+    if day is None:
+        return {}
+    rows = db.execute(select(HealthDaily).where(HealthDaily.day == day)).scalars().all()
+    def pick(attr):
+        for r in rows:
+            v = getattr(r, attr)
+            if v is not None:
+                return v
+        return None
+    return {"hrv_sdnn": pick("hrv_sdnn"), "resting_hr": pick("resting_hr"),
+            "sleep_hours": pick("sleep_hours"), "respiratory_rate": pick("respiratory_rate")}
+
+
+def _workout_for_window(db, start, end):
+    """The Apple Watch workout overlapping a session's [start, end] window, if any."""
+    if start is None or end is None:
+        return {}
+    w = db.execute(
+        select(Workout).where(Workout.start_ts <= end, Workout.end_ts >= start)
+        .order_by(desc(Workout.start_ts)).limit(1)
+    ).scalar_one_or_none()
+    if not w:
+        return {}
+    return {"insession_hr_avg": w.avg_hr, "insession_hr_max": w.max_hr,
+            "active_energy": w.active_energy, "duration_min": w.duration_min}
+
+
+@app.get("/api/session_points")
+def session_points():
+    """Per-session joined metrics for the relationship scatter plots.
+
+    Each rated session is joined to that day's wearable recovery (sleep/HRV/RHR)
+    and to any Apple Watch workout overlapping the session window (in-session HR,
+    active energy). Powers the 'your real sessions' overlay on the Summary charts.
+    """
+    db = SessionLocal()
+    try:
+        sessions = db.execute(select(SessionModel).order_by(SessionModel.day)).scalars().all()
+        out = []
+        for s in sessions:
+            if s.subjective_rating_1_10 is None:
+                continue
+            h = _health_for_day(db, s.day)
+            w = _workout_for_window(db, s.start_ts, s.end_ts)
+            out.append({
+                "session_id": s.session_id, "day": s.day.isoformat(),
+                "rating": s.subjective_rating_1_10,
+                "sleep_hours": h.get("sleep_hours"), "hrv": h.get("hrv_sdnn"),
+                "resting_hr": h.get("resting_hr"),
+                "insession_hr_avg": w.get("insession_hr_avg"),
+                "active_energy": w.get("active_energy"),
+            })
+        return {"points": out}
+    finally:
+        db.close()
+
+
 @app.get("/api/recovery")
 def recovery():
     """Latest available wearable recovery values (for the dashboard's Recovery card)."""

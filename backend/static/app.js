@@ -315,6 +315,7 @@ async function loadSummary() {
       tv.textContent = dir === 'up' ? 'Improving ↑' : dir === 'down' ? 'Declining ↓' : 'Steady →';
     } else { tc.className = 'card trend flat'; tv.textContent = 'Need ≥2 sessions'; }
     drawHist(hist);
+    loadRelationships();
     loadRecovery();
     // insights from sessions (sensors + rating)
     insights();
@@ -380,6 +381,81 @@ function drawHist(hist) {
     pts.forEach(([x, v]) => { ctx.beginPath(); ctx.arc(x, Y(v), 3, 0, 7); ctx.fillStyle = color; ctx.fill(); });
   };
   series('rating', '#f6b26b'); series('peer', '#67e8d1'); series('coach', '#5ad19a');
+}
+
+// ---------- relationship scatter plots ----------
+// Deterministic PRNG so the illustrative clouds are stable across reloads.
+function mulberry32(a) {
+  return function () {
+    a |= 0; a = a + 0x6D2B79F5 | 0;
+    let t = Math.imul(a ^ a >>> 15, 1 | a);
+    t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t;
+    return ((t ^ t >>> 14) >>> 0) / 4294967296;
+  };
+}
+// Simulated (x → 0–10 rating) cloud with a target slope + Gaussian-ish noise.
+function simRel(seed, xlo, xhi, yAtLo, yAtHi, noise, n = 16) {
+  const rnd = mulberry32(seed), out = [];
+  for (let i = 0; i < n; i++) {
+    const x = xlo + rnd() * (xhi - xlo);
+    const g = (rnd() + rnd() + rnd() - 1.5) * noise;
+    const y = clamp(yAtLo + (yAtHi - yAtLo) * ((x - xlo) / (xhi - xlo)) + g, 1, 10);
+    out.push({ x: Math.round(x * 10) / 10, y: Math.round(y * 10) / 10 });
+  }
+  return out;
+}
+const SIM = {
+  sleep: simRel(22, 5.5, 9.0, 4.5, 8.0, 1.7),    // sleep → moderate-strong (illustrative r≈0.65)
+  effort: simRel(251, 120, 175, 5.0, 7.4, 1.3),  // in-session HR → weak-moderate (r≈0.34)
+  cal: simRel(34, 320, 740, 5.0, 7.6, 2.6),      // active energy → moderate (r≈0.50)
+};
+function linfit(pts) {
+  const n = pts.length; if (n < 2) return null;
+  const mx = pts.reduce((a, p) => a + p.x, 0) / n, my = pts.reduce((a, p) => a + p.y, 0) / n;
+  let sxx = 0, sxy = 0;
+  for (const p of pts) { sxx += (p.x - mx) ** 2; sxy += (p.x - mx) * (p.y - my); }
+  return sxx ? { m: sxy / sxx, b: my - (sxy / sxx) * mx } : null;
+}
+function drawScatter(canvasId, sim, real, color) {
+  const c = $(canvasId); if (!c) return null;
+  const { ctx, w, h } = prep(c, 160);
+  ctx.clearRect(0, 0, w, h);
+  const padL = 28, padR = 10, padT = 10, padB = 18;
+  const xs = sim.concat(real).map(p => p.x);
+  if (!xs.length) return null;
+  let xmin = Math.min(...xs), xmax = Math.max(...xs);
+  const xpad = (xmax - xmin) * 0.08 || 1; xmin -= xpad; xmax += xpad;
+  const X = v => padL + (v - xmin) / (xmax - xmin) * (w - padL - padR);
+  const Y = v => h - padB - (v / 10) * (h - padT - padB);
+  ctx.strokeStyle = 'rgba(255,255,255,0.06)'; ctx.fillStyle = '#6f7c91';
+  ctx.font = '9px Inter, sans-serif'; ctx.textAlign = 'left';
+  [0, 5, 10].forEach(g => { const y = Y(g); ctx.beginPath(); ctx.moveTo(padL, y); ctx.lineTo(w - padR, y); ctx.stroke(); ctx.fillText(g, 4, y + 3); });
+  const fit = linfit(sim);
+  if (fit) {
+    ctx.beginPath();
+    ctx.moveTo(X(xmin), Y(clamp(fit.m * xmin + fit.b, 0, 10)));
+    ctx.lineTo(X(xmax), Y(clamp(fit.m * xmax + fit.b, 0, 10)));
+    ctx.strokeStyle = color; ctx.lineWidth = 1.6; ctx.setLineDash([4, 3]); ctx.stroke(); ctx.setLineDash([]);
+  }
+  sim.forEach(p => { ctx.beginPath(); ctx.arc(X(p.x), Y(p.y), 2.6, 0, 7); ctx.fillStyle = color + '55'; ctx.fill(); });
+  real.forEach(p => {
+    ctx.beginPath(); ctx.arc(X(p.x), Y(p.y), 4.5, 0, 7);
+    ctx.fillStyle = '#fff'; ctx.fill(); ctx.lineWidth = 2; ctx.strokeStyle = color; ctx.stroke();
+  });
+  return pearson(sim.map(p => p.x), sim.map(p => p.y));
+}
+async function loadRelationships() {
+  let real = [];
+  try { real = (await (await fetch('/api/session_points')).json()).points || []; } catch (e) { }
+  const realPts = (xk) => real.filter(p => p[xk] != null && p.rating != null).map(p => ({ x: p[xk], y: p.rating }));
+  const setR = (id, r, n) => {
+    const el = $(id); if (!el) return;
+    el.textContent = (r == null ? '—' : `demo r=${r >= 0 ? '+' : ''}${r.toFixed(2)}`) + (n ? ` · ${n} real` : '');
+  };
+  const rs = realPts('sleep_hours'), re = realPts('insession_hr_avg'), rc = realPts('active_energy');
+  setR('r_sleep', drawScatter('sc_sleep', SIM.sleep, rs, '#9db8ff'), rs.length);
+  setR('r_effort', drawScatter('sc_effort', SIM.effort, re, '#f6b26b'), re.length);
+  setR('r_cal', drawScatter('sc_cal', SIM.cal, rc, '#67e8d1'), rc.length);
 }
 
 // ---------- boot ----------
