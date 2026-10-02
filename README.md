@@ -1,72 +1,93 @@
 # Courtside — Multi-Modal Beach Volleyball Performance Sensing
 
-ECE 284 (hardware sensing for digital health). A personal-analytics instrument
-that fuses three streams to explain day-to-day beach volleyball performance for a
-single athlete:
+> An end-to-end personal-analytics instrument that fuses a custom ESP32 courtside
+> sensor node, wearable recovery data, and per-session self-report to explain
+> day-to-day beach volleyball performance for a single athlete.
 
-1. **Courtside node** — ESP32-S3 logging air temp/humidity (DHT11),
-   sand-surface temp (MLX90614 IR), and a sound/wind proxy (electret mic).
-2. **Recovery** — wearable physiology: Apple Watch (primary) + Oura (secondary).
-3. **Performance** — per-session subjective rating + objective outcomes.
+**Live demo → https://courtside-yr2r.onrender.com**
+*(free tier — the first load cold-starts in ~30–60s; the people/relationships shown are synthetic demo data.)*
 
-The node streams readings over the athlete's iPhone hotspot to a small web app
-(FastAPI + database) that shows **live data on the phone** (for tripod setup),
-auto-ingests Apple Watch data, and lets the athlete **log each session**. A
-4-stage analysis (correlation → Lasso/LOOCV → RF/GBM → SHAP) then ranks which
-factors best explain performance.
+Built solo for **ECE 284 — Hardware Sensing for Digital Health**, UC San Diego.
 
-## Layout
+![Courtside node on the beach](docs/images/node_beach.jpg)
+
+## What it does
+
+Three independent streams are captured courtside and time-aligned into one
+per-session feature table:
+
+- **Courtside node (hardware).** An ESP32-S3 logs air temperature + humidity
+  (DHT11), sand-surface temperature (MLX90614 IR), and an acoustic wind proxy
+  (electret mic). It posts readings over the athlete's iPhone hotspot to the
+  cloud — no laptop needed on the sand.
+- **Web app (FastAPI + Postgres).** A live phone dashboard for positioning the
+  node, automatic ingestion of Apple Watch recovery metrics (HRV, resting HR,
+  sleep) via Health Auto Export, a one-tap session log, and per-person /
+  per-court / partner-vs-opponent relationship views.
+- **Analysis (ML).** Per-session features → correlation screen → Lasso with
+  leave-one-out CV → random forest / gradient boosting → SHAP, producing an
+  interpretable ranking of which factors most explain performance.
+
+## Screenshots
+
+| Record a session | People & relationships |
+|---|---|
+| ![](docs/images/app_record.png) | ![](docs/images/app_people.png) |
+| **Court map** | **Recovery** |
+| ![](docs/images/app_map.png) | ![](docs/images/app_recovery.png) |
+
+## Architecture
+
+![System architecture](docs/images/architecture.png)
+
+## Factor ranking — the deliverable
+
+The four-stage pipeline outputs an interpretable ranking of the environmental and
+physiological factors that best explain session-to-session performance.
+
+![Factor rankings](docs/images/factor_rankings.png)
+
+## Repo layout
 
 ```
-firmware/     ESP32-S3 PlatformIO project (sensors + I2C scanner; WiFi POST added Phase 2)
-backend/      FastAPI web app + dashboard (Phase 1+)
-scripts/      Python data pipeline (wearable parse, feature merge, analysis)
-oura/         Oura API pull + plots (existing, working)
-plots/        Player survey analysis (user-need validation; N≈19)
-docs/         enclosure / design notes
-data/         local raw exports + db (gitignored)
+firmware/   ESP32-S3 PlatformIO project (DHT11 + MLX90614 + mic, WiFi POST)
+backend/    FastAPI app + mobile dashboard (one-click deploy via render.yaml)
+scripts/    data pipeline: wearable parse, feature merge, 4-stage analysis
+oura/       Oura API pull + validation plots
+docs/       enclosure spec, HealthKit setup, run/defense guides, images
 ```
 
-## Setup
+## Run it locally
 
 ```bash
-# Python (venv already exists at .venv)
-source .venv/bin/activate
+# backend + dashboard
+pip install -r backend/requirements.txt
+uvicorn app.main:app --app-dir backend --reload        # http://127.0.0.1:8000
+
+# firmware (PlatformIO)
+cp firmware/include/secrets.h.example firmware/include/secrets.h   # fill in WiFi + backend URL
+cd firmware && pio run -t upload && pio device monitor -b 115200
+
+# analysis
 pip install -r requirements.txt
-
-# Secrets
-cp .env.example .env          # add your OURA_TOKEN
+python scripts/build_features.py && python scripts/analysis.py
 ```
 
-### Firmware (PlatformIO via CLI)
-PlatformIO lives in its **own** venv (`.venv_pio`), separate from the data/analysis
-venv (`.venv`) — keep them apart (mixing them corrupted the original env).
+Secrets (`.env`, `firmware/include/secrets.h`) are gitignored — copy the matching
+`.example` files and fill in your own. Deploy to the cloud with the included
+`render.yaml` (Render Blueprint → provisions the web service + Postgres).
 
-```bash
-cd "/Users/tristancooper/Desktop/ECE 284 Hardware Sensing"
-source .venv_pio/bin/activate                       # PlatformIO env (NOT .venv)
-cd firmware
-python3 -m platformio run                           # compile
-python3 -m platformio run -t upload                 # flash (board on UART USB-C port)
-python3 -m platformio device monitor -b 115200      # serial monitor
-```
+## Notes & scope
 
-Copy `include/secrets.h.example` → `include/secrets.h` before the WiFi build (Phase 2).
-On boot the monitor prints a config summary + I2C scan, then a 1 Hz CSV stream:
-`millis,temp_C,humidity_pct,ir_object_C,ir_ambient_C,sound_pp`.
+- **N = 1 pilot.** Results are descriptive, not statistically powered; small-N is
+  handled with LOOCV + regularization and reported honestly.
+- **Demo data is synthetic** (`scripts/seed_demo.py`) — the partners, opponents,
+  and relationship signals in the live demo exist to exercise the UI, not to
+  describe real people.
+- **Privacy.** Raw personal biometrics are kept out of this repo by design;
+  regional weather (Open-Meteo) is used only as a coarse baseline against the
+  node's court-level microclimate measurements.
 
-**Hardware notes**
-- **Solder the MLX90614 header before debugging IR.** Loose/touching I2C pins make
-  the device vanish from the bus — `# I2C scan` must show `found 0x5A` for IR to read.
-- If DHT11/mic readings jump (mic pegging to 4095) or drop to `nan`, **reseat the
-  Dupont jumpers** — flaky connectors, not code, are the usual cause. Use a
-  breadboard / screw terminals / tape for strain relief.
+## License
 
-## Privacy
-`oura/oura_csvs/` contains personal physiological data. Health exports and the
-app database live under `data/` and are gitignored. Keep this repo **private**.
-
-## Security note
-The Oura token in `.env` was previously stored in plaintext — **rotate it** at
-https://cloud.ouraring.com/personal-access-tokens. `.env` and
-`firmware/include/secrets.h` are gitignored; never commit them.
+[MIT](LICENSE)

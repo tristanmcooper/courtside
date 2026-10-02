@@ -39,3 +39,6 @@ features/
 *.fdb_latexmk
 *.synctex.gz
 *.out
+
+# Personal Oura biometric data — kept private (backed up at ~/courtside-private/)
+oura/oura_csvs/
