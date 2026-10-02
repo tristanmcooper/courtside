@@ -7,6 +7,8 @@
 **Live demo → https://courtside-yr2r.onrender.com**
 *(free tier — the first load cold-starts in ~30–60s; the people/relationships shown are synthetic demo data.)*
 
+**📄 Full write-up → [Courtside_Final_Report.pdf](Courtside_Final_Report.pdf)**
+
 Built solo for **ECE 284 — Hardware Sensing for Digital Health**, UC San Diego.
 
 ![Courtside node on the beach](docs/images/node_beach.jpg)
